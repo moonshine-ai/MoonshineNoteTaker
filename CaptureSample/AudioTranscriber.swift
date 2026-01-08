@@ -13,7 +13,9 @@ import OSLog
 class AudioTranscriber {
     private let logger = Logger()
     private var transcriber: Transcriber?
-    private var stream: MoonshineVoice.Stream?
+    private var systemAudioStream: MoonshineVoice.Stream?
+    private var micStream: MoonshineVoice.Stream?
+    private var micAudioEngine: AVAudioEngine?
     private var isTranscribing = false
     
     /// Initialize the transcriber with a model path.
@@ -30,11 +32,21 @@ class AudioTranscriber {
         // Initialize transcriber with tiny model architecture (suitable for streaming)
         transcriber = try Transcriber(modelPath: modelPath, modelArch: .base)
         
-        // Create a stream for real-time transcription
-        stream = try transcriber?.createStream(updateInterval: 0.5)
+        // Create a stream for real-time transcription from system audio
+        systemAudioStream = try transcriber?.createStream(updateInterval: 0.5)
         
         // Add event listeners to print transcript changes and completions
-        try stream?.addListener { [weak self] event in
+        systemAudioStream?.addListener { [weak self] event in
+            self?.handleTranscriptEvent(event)
+        }
+        
+        // Create a stream for real-time transcription from microphone audio
+        micStream = try transcriber?.createStream(updateInterval: 0.5)
+
+        try initMic()
+
+        // Add event listeners to print transcript changes and completions
+        micStream?.addListener { [weak self] event in
             self?.handleTranscriptEvent(event)
         }
         
@@ -43,8 +55,13 @@ class AudioTranscriber {
     
     /// Start transcription.
     func start() throws {
-        guard let stream = stream else {
+        guard let systemAudioStream = systemAudioStream else {
             throw NSError(domain: "AudioTranscriber", code: 1, 
+                        userInfo: [NSLocalizedDescriptionKey: "Transcriber not initialized"])
+        }
+        
+        guard let micStream = micStream else {
+            throw NSError(domain: "AudioTranscriber", code: 1,
                         userInfo: [NSLocalizedDescriptionKey: "Transcriber not initialized"])
         }
         
@@ -53,21 +70,24 @@ class AudioTranscriber {
             return
         }
         
-        try stream.start()
+        try systemAudioStream.start()
+        try micStream.start()
         isTranscribing = true
         logger.info("Transcription started")
     }
     
     /// Stop transcription.
     func stop() throws {
-        guard let stream = stream else { return }
-        
+        guard let systemAudioStream = systemAudioStream else { return }
+        guard let micStream = micStream else { return }
+
         guard isTranscribing else {
             logger.warning("Transcription not started")
             return
         }
         
-        try stream.stop()
+        try systemAudioStream.stop()
+        try micStream.stop()
         isTranscribing = false
         logger.info("Transcription stopped")
     }
@@ -75,7 +95,7 @@ class AudioTranscriber {
     /// Add audio data to the transcription stream.
     /// - Parameter buffer: AVAudioPCMBuffer containing audio samples
     func addAudio(_ buffer: AVAudioPCMBuffer) throws {
-        guard let stream = stream, isTranscribing else { return }
+        guard let systemAudioStream = systemAudioStream, isTranscribing else { return }
         
         // Convert AVAudioPCMBuffer to Float array
         guard let floatChannelData = buffer.floatChannelData else {
@@ -105,7 +125,126 @@ class AudioTranscriber {
         }
         
         // Add audio to the transcription stream
-        try stream.addAudio(audioData, sampleRate: sampleRate)
+        try systemAudioStream.addAudio(audioData, sampleRate: sampleRate)
+    }
+
+    func initMic() throws {
+        let permissionStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        
+        // Log the current permission status for debugging
+        let statusDescription: String
+        switch permissionStatus {
+        case .notDetermined:
+            statusDescription = "notDetermined"
+        case .denied:
+            statusDescription = "denied"
+        case .authorized:
+            statusDescription = "authorized"
+        case .restricted:
+            statusDescription = "restricted"
+        @unknown default:
+            statusDescription = "unknown"
+        }
+        logger.info("Current microphone permission status: \(statusDescription)")
+        print("[PERMISSION] Current microphone permission status: \(statusDescription)")
+        
+        if permissionStatus == .denied {
+            logger.error("Microphone permission was previously denied. Please reset in System Settings > Privacy & Security > Microphone")
+            print("[PERMISSION ERROR] Microphone permission was previously denied.")
+            print("[PERMISSION] To reset: System Settings > Privacy & Security > Microphone > Remove this app and try again")
+            throw MoonshineError.custom(message: "Microphone permission denied. Please grant permission in System Settings > Privacy & Security > Microphone", code: -1)
+        }
+        
+        if permissionStatus == .restricted {
+            logger.error("Microphone permission is restricted (parental controls or MDM)")
+            print("[PERMISSION ERROR] Microphone permission is restricted")
+            throw MoonshineError.custom(message: "Microphone permission is restricted", code: -1)
+        }
+
+        if permissionStatus == .notDetermined {
+            // Request permission asynchronously
+            var permissionGranted = false
+            let semaphore = DispatchSemaphore(value: 0)
+            
+            logger.info("Requesting microphone permission...")
+            print("[PERMISSION] Requesting microphone permission...")
+
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                print("[PERMISSION] requestAccess callback fired with granted: \(granted)")
+                permissionGranted = granted
+                semaphore.signal()
+            }
+
+            semaphore.wait()
+            
+            // Re-check the status after the request
+            let newStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+            logger.info("Permission status after request: \(String(describing: newStatus)), callback granted: \(permissionGranted)")
+
+            if !permissionGranted {
+                logger.error("Microphone permission denied by user")
+                print("[PERMISSION ERROR] Microphone permission denied by user")
+                print("[PERMISSION] To reset: System Settings > Privacy & Security > Microphone > Remove this app and try again")
+                throw MoonshineError.custom(message: "Microphone permission denied. Please grant permission in System Settings > Privacy & Security > Microphone", code: -1)
+            }
+        }
+
+        // Final check - ensure we have authorized status
+        let finalStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        if finalStatus != .authorized {
+            logger.error("Microphone permission not authorized. Status: \(String(describing: finalStatus))")
+            print("[PERMISSION ERROR] Microphone permission not authorized. Final status: \(String(describing: finalStatus))")
+            throw MoonshineError.custom(message: "Microphone permission not authorized. Please grant permission in System Settings > Privacy & Security > Microphone", code: -1)
+        }
+        
+        logger.info("Microphone permission authorized")
+        print("[PERMISSION] Microphone permission authorized")
+
+        // Set up audio engine
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let inputFormat = inputNode.inputFormat(forBus: 0)
+
+        // Create target format
+        guard
+            let targetFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 16000,
+                channels: AVAudioChannelCount(1),
+                interleaved: false
+            )
+        else {
+            throw MoonshineError.custom(message: "Failed to create target audio format", code: -1)
+        }
+
+        // Install tap on input node
+        inputNode.installTap(onBus: 0, bufferSize: 512, format: inputFormat) {
+            [weak self] (buffer, time) in
+
+            var audioData: [Float] = []
+            var finalSampleRate: Double = 16000
+
+            guard let channelData = buffer.floatChannelData else { return }
+            let frameLength = Int(buffer.frameLength)
+            audioData.reserveCapacity(frameLength)
+
+            audioData.append(
+                contentsOf: UnsafeBufferPointer(start: channelData[0], count: frameLength))
+            finalSampleRate = inputFormat.sampleRate
+
+            // Feed audio to stream
+            do {
+                guard let self = self, let micStream = self.micStream else { return }
+                try micStream.addAudio(audioData, sampleRate: Int32(finalSampleRate))
+            } catch {
+                print("MicTranscriber: Error adding audio to stream: \(error.localizedDescription)")
+            }
+        }
+
+        // Start the audio engine
+        try engine.start()
+
+        micAudioEngine = engine
     }
     
     /// Handle transcript events and print to console.
@@ -148,9 +287,9 @@ class AudioTranscriber {
             logger.error("Error stopping transcription during cleanup: \(error.localizedDescription)")
         }
         
-        stream?.close()
+        systemAudioStream?.close()
         transcriber?.close()
-        stream = nil
+        systemAudioStream = nil
         transcriber = nil
         isTranscribing = false
     }
