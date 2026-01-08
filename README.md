@@ -18,7 +18,7 @@ This example has been updated to integrate with Moonshine Voice for real-time au
    - Add the Moonshine Voice package:
      - If using a local path: `file:///Users/petewarden/projects/moonshine-v2/swift`
      - Or add the remote URL if available
-   - Select the `MoonshineVoice` product and add it to the `CaptureSample` target
+   - Select the `MoonshineVoice` product and add it to the `OpenNoteTaker` target
 
 2. **Model Path Configuration:**
    - The app will automatically attempt to find the Moonshine model files from the framework bundle

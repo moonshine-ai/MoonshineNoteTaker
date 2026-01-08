@@ -49,7 +49,7 @@ struct ContentView: View {
                 }
             }
         }
-        .navigationTitle("Screen Capture Sample")
+        .navigationTitle("Open Note Taker")
         .onAppear {
             Task {
                 if await screenRecorder.canRecord {

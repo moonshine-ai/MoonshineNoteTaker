@@ -7,7 +7,7 @@ The entry point into this app.
 import SwiftUI
 
 @main
-struct CaptureSampleApp: App {
+struct OpenNoteTakerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

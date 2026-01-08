@@ -19,7 +19,7 @@
 		C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */; };
 		C4B0DAAF276BA4480015082A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAAE276BA4480015082A /* Assets.xcassets */; };
 		C4B0DAB2276BA4480015082A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAB1276BA4480015082A /* Preview Assets.xcassets */; };
-		C4B0DABA276BA49F0015082A /* CaptureSampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DAB9276BA49F0015082A /* CaptureSampleApp.swift */; };
+		C4B0DABA276BA49F0015082A /* OpenNoteTakerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DAB9276BA49F0015082A /* OpenNoteTakerApp.swift */; };
 		C4B0DABE276BA4B50015082A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DABB276BA4B50015082A /* ContentView.swift */; };
 		C4B0DABF276BA4B50015082A /* CapturePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DABC276BA4B50015082A /* CapturePreview.swift */; };
 		C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DABD276BA4B50015082A /* CaptureEngine.swift */; };
@@ -28,7 +28,7 @@
 
 /* Begin PBXFileReference section */
 		122776EC2A82BC6F0083737C /* PickerSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PickerSettingsView.swift; sourceTree = "<group>"; };
-		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = CaptureSample/models; sourceTree = "<group>"; };
+		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = OpenNoteTaker/models; sourceTree = "<group>"; };
 		7C6C99F1D4B6E3EBA3A7B7DF /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		8D89E0E7125AFE6B4E2E6500 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9AEEB9169F5D7FC75E6B35A2 /* SampleCode.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = SampleCode.xcconfig; path = Configuration/SampleCode.xcconfig; sourceTree = "<group>"; };
@@ -39,11 +39,11 @@
 		C471DFFD280A0968001D24C9 /* AudioLevelsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelsView.swift; sourceTree = "<group>"; };
 		C4729DA42821BFAD00AAC477 /* MaterialView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MaterialView.swift; sourceTree = "<group>"; };
 		C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AudioTranscriber.swift; sourceTree = "<group>"; };
-		C4B0DAA7276BA4460015082A /* CaptureSample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CaptureSample.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		C4B0DAAE276BA4480015082A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../CaptureSample/Assets.xcassets; sourceTree = "<group>"; };
+		C4B0DAA7276BA4460015082A /* OpenNoteTaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenNoteTaker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C4B0DAAE276BA4480015082A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../OpenNoteTaker/Assets.xcassets; sourceTree = "<group>"; };
 		C4B0DAB1276BA4480015082A /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		C4B0DAB3276BA4480015082A /* CaptureSample.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = CaptureSample.entitlements; path = ../CaptureSample/CaptureSample.entitlements; sourceTree = "<group>"; };
-		C4B0DAB9276BA49F0015082A /* CaptureSampleApp.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CaptureSampleApp.swift; path = ../CaptureSample/CaptureSampleApp.swift; sourceTree = "<group>"; };
+		C4B0DAB3276BA4480015082A /* OpenNoteTaker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = OpenNoteTaker.entitlements; path = ../OpenNoteTaker/OpenNoteTaker.entitlements; sourceTree = "<group>"; };
+		C4B0DAB9276BA49F0015082A /* OpenNoteTakerApp.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = OpenNoteTakerApp.swift; path = ../OpenNoteTaker/OpenNoteTakerApp.swift; sourceTree = "<group>"; };
 		C4B0DABB276BA4B50015082A /* ContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C4B0DABC276BA4B50015082A /* CapturePreview.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CapturePreview.swift; sourceTree = "<group>"; };
 		C4B0DABD276BA4B50015082A /* CaptureEngine.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
@@ -95,7 +95,7 @@
 			children = (
 				5951911F2F105D28005425B3 /* models */,
 				8D89E0E7125AFE6B4E2E6500 /* README.md */,
-				C4B0DAA9276BA4460015082A /* CaptureSample */,
+				C4B0DAA9276BA4460015082A /* OpenNoteTaker */,
 				C4B0DAA8276BA4460015082A /* Products */,
 				CFC39354E2BF335FE5D2CDFE /* Configuration */,
 				58C6EBE29CE5FC0542EA3228 /* LICENSE */,
@@ -105,12 +105,12 @@
 		C4B0DAA8276BA4460015082A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C4B0DAA7276BA4460015082A /* CaptureSample.app */,
+				C4B0DAA7276BA4460015082A /* OpenNoteTaker.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		C4B0DAA9276BA4460015082A /* CaptureSample */ = {
+		C4B0DAA9276BA4460015082A /* OpenNoteTaker */ = {
 			isa = PBXGroup;
 			children = (
 				C470F0802811C5CB00D29309 /* ScreenRecorder.swift */,
@@ -120,13 +120,13 @@
 				C44093742816EC9C00FB8386 /* AudioPlayer.swift */,
 				C4B0DABB276BA4B50015082A /* ContentView.swift */,
 				C41D1B1D2814BD230033613F /* Views */,
-				C4B0DAB9276BA49F0015082A /* CaptureSampleApp.swift */,
+				C4B0DAB9276BA49F0015082A /* OpenNoteTakerApp.swift */,
 				C44093712816EC7800FB8386 /* Audio */,
 				C4B0DAAE276BA4480015082A /* Assets.xcassets */,
-				C4B0DAB3276BA4480015082A /* CaptureSample.entitlements */,
+				C4B0DAB3276BA4480015082A /* OpenNoteTaker.entitlements */,
 				C4B0DAB0276BA4480015082A /* Preview Content */,
 			);
-			path = CaptureSample;
+			path = OpenNoteTaker;
 			sourceTree = "<group>";
 		};
 		C4B0DAB0276BA4480015082A /* Preview Content */ = {
@@ -148,9 +148,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C4B0DAA6276BA4460015082A /* CaptureSample */ = {
+		C4B0DAA6276BA4460015082A /* OpenNoteTaker */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "CaptureSample" */;
+			buildConfigurationList = C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "OpenNoteTaker" */;
 			buildPhases = (
 				C4B0DAA3276BA4460015082A /* Sources */,
 				C4B0DAA4276BA4460015082A /* Frameworks */,
@@ -160,9 +160,9 @@
 			);
 			dependencies = (
 			);
-			name = CaptureSample;
+			name = OpenNoteTaker;
 			productName = CaptureIt;
-			productReference = C4B0DAA7276BA4460015082A /* CaptureSample.app */;
+			productReference = C4B0DAA7276BA4460015082A /* OpenNoteTaker.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -182,7 +182,7 @@
 					};
 				};
 			};
-			buildConfigurationList = C4B0DAA2276BA4460015082A /* Build configuration list for PBXProject "CaptureSample" */;
+			buildConfigurationList = C4B0DAA2276BA4460015082A /* Build configuration list for PBXProject "OpenNoteTaker" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -198,7 +198,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				C4B0DAA6276BA4460015082A /* CaptureSample */,
+				C4B0DAA6276BA4460015082A /* OpenNoteTaker */,
 			);
 		};
 /* End PBXProject section */
@@ -227,7 +227,7 @@
 				C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */,
 				C44093752816EC9C00FB8386 /* AudioPlayer.swift in Sources */,
 				C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */,
-				C4B0DABA276BA49F0015082A /* CaptureSampleApp.swift in Sources */,
+				C4B0DABA276BA49F0015082A /* OpenNoteTakerApp.swift in Sources */,
 				C471DFFE280A0968001D24C9 /* AudioLevelsView.swift in Sources */,
 				122776ED2A82BC6F0083737C /* PickerSettingsView.swift in Sources */,
 				C4EB90D428108656006A595C /* ConfigurationView.swift in Sources */,
@@ -368,14 +368,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = CaptureSample/CaptureSample.entitlements;
+				CODE_SIGN_ENTITLEMENTS = OpenNoteTaker/OpenNoteTaker.entitlements;
 				CODE_SIGN_IDENTITY = "Mac Developer";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Mac Developer";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"CaptureSample/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"OpenNoteTaker/Preview Content\"";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -388,7 +388,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.example.apple-samplecode.CaptureSample${SAMPLE_CODE_DISAMBIGUATOR}";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.moonshine.opennotetaker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -404,14 +404,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = CaptureSample/CaptureSample.entitlements;
+				CODE_SIGN_ENTITLEMENTS = OpenNoteTaker/OpenNoteTaker.entitlements;
 				CODE_SIGN_IDENTITY = "Mac Developer";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Mac Developer";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"CaptureSample/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"OpenNoteTaker/Preview Content\"";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -424,7 +424,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.example.apple-samplecode.CaptureSample${SAMPLE_CODE_DISAMBIGUATOR}";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.moonshine.opennotetaker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -435,7 +435,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C4B0DAA2276BA4460015082A /* Build configuration list for PBXProject "CaptureSample" */ = {
+		C4B0DAA2276BA4460015082A /* Build configuration list for PBXProject "OpenNoteTaker" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C4B0DAB4276BA4480015082A /* Debug */,
@@ -444,7 +444,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "CaptureSample" */ = {
+		C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "OpenNoteTaker" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C4B0DAB7276BA4480015082A /* Debug */,
