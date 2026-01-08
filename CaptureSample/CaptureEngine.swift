@@ -59,7 +59,7 @@ class CaptureEngine: NSObject, @unchecked Sendable {
             do {
                 stream = SCStream(filter: filter, configuration: configuration, delegate: streamOutput)
                 
-                // Add a stream output to capture screen content.
+                // Add stream outputs. Screen output is added but frames are discarded (video disabled).
                 try stream?.addStreamOutput(streamOutput, type: .screen, sampleHandlerQueue: videoSampleBufferQueue)
                 try stream?.addStreamOutput(streamOutput, type: .audio, sampleHandlerQueue: audioSampleBufferQueue)
                 try stream?.addStreamOutput(streamOutput, type: .microphone, sampleHandlerQueue: micSampleBufferQueue)
@@ -137,9 +137,9 @@ private class CaptureEngineStreamOutput: NSObject, SCStreamOutput, SCStreamDeleg
         // Determine which type of data the sample buffer contains.
         switch outputType {
         case .screen:
-            // Create a CapturedFrame structure for a video sample buffer.
-            guard let frame = createFrame(for: sampleBuffer) else { return }
-            capturedFrameHandler?(frame)
+            // Video capture is disabled - discard frames silently to avoid warnings.
+            // Don't process or yield video frames.
+            return
         case .audio:
             // Process audio as an AVAudioPCMBuffer for level calculation.
             handleAudio(for: sampleBuffer)
