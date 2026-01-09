@@ -156,6 +156,9 @@ class ScreenRecorder: NSObject,
     private let audioLevelRefreshRate: TimeInterval = 0.1
     private var audioMeterCancellable: AnyCancellable?
     
+    /// The transcript document that holds all transcript lines.
+    @Published var transcriptDocument = TranscriptDocument()
+    
     private let recordingOutputPath: String? = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).last
     private var recordingOutput: SCRecordingOutput?
     
@@ -203,6 +206,12 @@ class ScreenRecorder: NSObject,
             isSetup = true
         }
         
+        // Start the transcript document session
+        transcriptDocument.startSession()
+        
+        // Connect the transcript document to the capture engine
+        captureEngine.setTranscriptDocument(transcriptDocument)
+        
         // If the user enables audio capture, start monitoring the audio stream.
         if isAudioCaptureEnabled {
             startAudioMetering()
@@ -240,6 +249,8 @@ class ScreenRecorder: NSObject,
         removeMicrophoneOutput()
         // Stop transcription
         try? captureEngine.stopTranscription()
+        // End the transcript document session
+        transcriptDocument.endSession()
         isRunning = false
     }
     

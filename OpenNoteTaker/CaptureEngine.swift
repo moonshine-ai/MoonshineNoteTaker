@@ -9,6 +9,7 @@ import AVFAudio
 import ScreenCaptureKit
 import OSLog
 import Combine
+import SwiftUI
 
 /// A structure that contains the video data to render.
 struct CapturedFrame: @unchecked Sendable {
@@ -40,6 +41,12 @@ class CaptureEngine: NSObject, @unchecked Sendable {
     
     // Manages audio transcription using Moonshine Voice.
     private let audioTranscriber = AudioTranscriber()
+    
+    /// Set the transcript document for the audio transcriber.
+    /// - Parameter document: The transcript document to update
+    func setTranscriptDocument(_ document: TranscriptDocument) {
+        audioTranscriber.transcriptDocument = document
+    }
     
     // Store the the startCapture continuation, so that you can cancel it when you call stopCapture().
     private var continuation: AsyncThrowingStream<CapturedFrame, Error>.Continuation?

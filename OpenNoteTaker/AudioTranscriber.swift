@@ -8,6 +8,7 @@ import Foundation
 import AVFoundation
 import MoonshineVoice
 import OSLog
+import SwiftUI
 
 /// Manages audio transcription using Moonshine Voice.
 class AudioTranscriber {
@@ -17,6 +18,15 @@ class AudioTranscriber {
     private var micStream: MoonshineVoice.Stream?
     private var micAudioEngine: AVAudioEngine?
     private var isTranscribing = false
+    
+    /// Optional transcript document to update with transcript events.
+    weak var transcriptDocument: TranscriptDocument?
+    
+    /// Mapping from Moonshine line IDs to our TranscriptLine UUIDs.
+    private var lineIdMapping: [UInt64: UUID] = [:]
+    
+    /// The time when transcription started, used to calculate relative start times.
+    private var transcriptionStartTime: Date?
     
     /// Initialize the transcriber with a model path.
     /// - Parameter modelPath: Path to the directory containing model files (e.g., "tiny-en")
@@ -70,6 +80,9 @@ class AudioTranscriber {
             return
         }
         
+        transcriptionStartTime = Date()
+        lineIdMapping.removeAll()
+        
         try systemAudioStream.start()
         try micStream.start()
         isTranscribing = true
@@ -89,6 +102,8 @@ class AudioTranscriber {
         try systemAudioStream.stop()
         try micStream.stop()
         isTranscribing = false
+        transcriptionStartTime = nil
+        lineIdMapping.removeAll()
         logger.info("Transcription stopped")
     }
     
@@ -255,19 +270,31 @@ class AudioTranscriber {
             print("[TRANSCRIPT TEXT CHANGED] Line \(lineTextChanged.line.lineId): \"\(lineTextChanged.line.text)\"")
             logger.info("Transcript text changed: Line \(lineTextChanged.line.lineId) - \"\(lineTextChanged.line.text)\"")
             
+            // Update the document if available
+            updateDocumentForLine(lineTextChanged.line)
+            
         case let lineCompleted as LineCompleted:
             // Print when transcript line is completed
             print("[TRANSCRIPT COMPLETED] Line \(lineCompleted.line.lineId): \"\(lineCompleted.line.text)\" (start: \(String(format: "%.2f", lineCompleted.line.startTime))s, duration: \(String(format: "%.2f", lineCompleted.line.duration))s)")
             logger.info("Transcript completed: Line \(lineCompleted.line.lineId) - \"\(lineCompleted.line.text)\"")
+            
+            // Update the document with the final line
+            updateDocumentForLine(lineCompleted.line)
             
         case let lineStarted as LineStarted:
             // Optionally print when a new line starts
             print("[TRANSCRIPT LINE STARTED] Line \(lineStarted.line.lineId): \"\(lineStarted.line.text)\"")
             logger.debug("Transcript line started: Line \(lineStarted.line.lineId)")
             
+            // Add the new line to the document
+            addLineToDocument(lineStarted.line)
+            
         case let lineUpdated as LineUpdated:
             // Optionally print when a line is updated (but text hasn't changed)
             logger.debug("Transcript line updated: Line \(lineUpdated.line.lineId)")
+            
+            // Update the document
+            updateDocumentForLine(lineUpdated.line)
             
         case let error as TranscriptError:
             // Print errors
@@ -276,6 +303,64 @@ class AudioTranscriber {
             
         default:
             break
+        }
+    }
+    
+    /// Add a new line to the transcript document, or update if it already exists.
+    /// - Parameter line: The Moonshine Line object
+    private func addLineToDocument(_ line: MoonshineVoice.TranscriptLine) {
+        guard let document = transcriptDocument else { return }
+        
+        // Check if we already have this line
+        if let existingUUID = lineIdMapping[line.lineId] {
+            // Line already exists, just update it
+            // Extract text before sending to main actor
+            let text = line.text
+            Task { @MainActor in
+                document.updateLine(id: existingUUID, text: text)
+            }
+            return
+        }
+        
+        // Calculate relative start time from transcription start
+        // Convert Float to TimeInterval (Double)
+        let relativeStartTime: TimeInterval = TimeInterval(line.startTime)
+        
+        // Create a new TranscriptLine
+        let transcriptLine = TranscriptLine(
+            text: line.text,
+            startTime: relativeStartTime,
+            duration: TimeInterval(line.duration)
+        )
+        
+        // Store the mapping from Moonshine lineId to our UUID
+        lineIdMapping[line.lineId] = transcriptLine.id
+        
+        // Add to document on main actor
+        Task { @MainActor in
+            document.addLine(transcriptLine)
+        }
+    }
+    
+    /// Update an existing line in the transcript document.
+    /// - Parameter line: The Moonshine Line object
+    private func updateDocumentForLine(_ line: MoonshineVoice.TranscriptLine) {
+        guard let document = transcriptDocument else { return }
+        
+        // If we don't have a mapping yet, create the line first
+        if lineIdMapping[line.lineId] == nil {
+            addLineToDocument(line)
+            return
+        }
+        
+        guard let uuid = lineIdMapping[line.lineId] else { return }
+        
+        // Extract text before sending to main actor
+        let text = line.text
+        
+        // Update the line text on main actor
+        Task { @MainActor in
+            document.updateLine(id: uuid, text: text)
         }
     }
     

@@ -21,7 +21,6 @@ struct ContentView: View {
         VStack(spacing: 0) {
             // Top section with recording button
             HStack {
-                Spacer()
                 Button(action: {
                     Task {
                         if screenRecorder.isRunning {
