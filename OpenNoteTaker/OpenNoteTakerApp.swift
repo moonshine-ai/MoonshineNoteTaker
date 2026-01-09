@@ -12,7 +12,7 @@ struct OpenNoteTakerApp: App {
         WindowGroup {
             ContentView()
                 .frame(minWidth: 960, minHeight: 724)
-                .background(.black)
+                .background(.white)
         }
     }
 }
