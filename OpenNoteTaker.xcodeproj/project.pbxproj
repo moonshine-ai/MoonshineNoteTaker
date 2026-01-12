@@ -44,6 +44,7 @@
 		C4B0DAAE276BA4480015082A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../OpenNoteTaker/Assets.xcassets; sourceTree = "<group>"; };
 		C4B0DAB1276BA4480015082A /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		C4B0DAB3276BA4480015082A /* OpenNoteTaker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = OpenNoteTaker.entitlements; path = ../OpenNoteTaker/OpenNoteTaker.entitlements; sourceTree = "<group>"; };
+		C4B0DAB9276BA4480015083A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = ../OpenNoteTaker/Info.plist; sourceTree = "<group>"; };
 		C4B0DAB9276BA49F0015082A /* OpenNoteTakerApp.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = OpenNoteTakerApp.swift; path = ../OpenNoteTaker/OpenNoteTakerApp.swift; sourceTree = "<group>"; };
 		C4B0DABB276BA4B50015082A /* ContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C4B0DABC276BA4B50015082A /* CapturePreview.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CapturePreview.swift; sourceTree = "<group>"; };
@@ -126,6 +127,7 @@
 				C44093712816EC7800FB8386 /* Audio */,
 				C4B0DAAE276BA4480015082A /* Assets.xcassets */,
 				C4B0DAB3276BA4480015082A /* OpenNoteTaker.entitlements */,
+				C4B0DAB9276BA4480015083A /* Info.plist */,
 				C4B0DAB0276BA4480015082A /* Preview Content */,
 			);
 			path = OpenNoteTaker;
@@ -303,6 +305,7 @@
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -360,6 +363,7 @@
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -381,9 +385,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app needs microphone access to transcribe audio from your microphone.";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenNoteTaker/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -417,9 +420,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app needs microphone access to transcribe audio from your microphone.";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenNoteTaker/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

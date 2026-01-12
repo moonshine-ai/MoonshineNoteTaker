@@ -8,6 +8,7 @@ A document model that holds transcript lines in time order for display and persi
 import Foundation
 import SwiftUI
 import ScreenCaptureKit
+import UniformTypeIdentifiers
 
 /// Represents a single transcript line with timing information.
 struct TranscriptLine: Identifiable, Codable, Equatable {
@@ -49,8 +50,10 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
 }
 
 /// A document model that holds transcript lines in time order.
-@MainActor
-class TranscriptDocument: ObservableObject {
+class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Sendable, ObservableObject {
+    /// The document title (shown in the titlebar).
+    @Published var title: String = "Untitled"
+    
     /// The transcript lines, maintained in time order.
     @Published private(set) var lines: [TranscriptLine] = []
     
@@ -60,7 +63,93 @@ class TranscriptDocument: ObservableObject {
     /// The end time of the recording session.
     @Published var sessionEndTime: Date?
     
+    /// Thread-safe cached snapshot for background thread access during saves
+    private nonisolated(unsafe) var cachedSnapshot: DocumentData?
+    
+    /// Lock for thread-safe access to cached snapshot
+    private nonisolated let snapshotLock = NSLock()
+    
+    // MARK: - ReferenceFileDocument Conformance
+    
+    static var readableContentTypes: [UTType] {
+        [UTType(exportedAs: "ai.moonshine.opennotetaker.transcript")]
+    }
+    
+    nonisolated required init(configuration: ReadConfiguration) throws {
+        // This initializer is called from a background thread when loading files.
+        // We use nonisolated(unsafe) because we need to initialize @MainActor properties
+        // during initialization, which is safe because the object isn't accessible yet.
+        let lines: [TranscriptLine]
+        let sessionStartTime: Date?
+        let sessionEndTime: Date?
+        
+        if let data = configuration.file.regularFileContents {
+            if let document = Self.decode(from: data) {
+                self.title = configuration.file.filename ?? "Untitled"
+                lines = document.lines
+                sessionStartTime = document.sessionStartTime
+                sessionEndTime = document.sessionEndTime
+                self.lines = lines
+                self.sessionStartTime = sessionStartTime
+                self.sessionEndTime = sessionEndTime
+            } else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+        } else {
+            // New empty document
+            self.title = "Untitled"
+            lines = []
+            sessionStartTime = nil
+            sessionEndTime = nil
+            self.lines = lines
+            self.sessionStartTime = sessionStartTime
+            self.sessionEndTime = sessionEndTime
+        }
+        
+        // Initialize the cached snapshot directly using captured values
+        let snapshot = DocumentData(
+            lines: lines,
+            sessionStartTime: sessionStartTime,
+            sessionEndTime: sessionEndTime
+        )
+        snapshotLock.lock()
+        cachedSnapshot = snapshot
+        snapshotLock.unlock()
+    }
+    
+    nonisolated func snapshot(contentType: UTType) throws -> DocumentData {
+        // SwiftUI's document saving can call this from a background thread.
+        // Return the cached snapshot which is updated on the main actor.
+        snapshotLock.lock()
+        defer { snapshotLock.unlock() }
+        
+        guard let snapshot = cachedSnapshot else {
+            // If no cached snapshot exists, create one (shouldn't happen in normal flow)
+            throw CocoaError(.fileWriteUnknown)
+        }
+        
+        return snapshot
+    }
+    
+    /// Update the cached snapshot. Call this from the main actor whenever the document changes.
+    @MainActor
+    private func updateCachedSnapshot() {
+        let snapshot = DocumentData(from: self)
+        snapshotLock.lock()
+        cachedSnapshot = snapshot
+        snapshotLock.unlock()
+    }
+    
+    nonisolated func fileWrapper(snapshot: DocumentData, configuration: WriteConfiguration) throws -> FileWrapper {
+        // This method is called from a background thread during document saving.
+        // It only uses the snapshot parameter (which is already a value type),
+        // so it doesn't need main actor isolation.
+        let data = try JSONEncoder().encode(snapshot)
+        return FileWrapper(regularFileWithContents: data)
+    }
+    
     /// Total duration of the recording in seconds.
+    @MainActor
     var totalDuration: TimeInterval {
         guard let start = sessionStartTime, let end = sessionEndTime else {
             return 0
@@ -69,32 +158,56 @@ class TranscriptDocument: ObservableObject {
     }
     
     /// Initialize an empty transcript document.
+    @MainActor
     init() {
+        self.title = "Untitled"
         self.lines = []
         self.sessionStartTime = nil
         self.sessionEndTime = nil
+        updateCachedSnapshot()
     }
     
     /// Initialize a transcript document with existing lines.
-    /// - Parameter lines: Array of transcript lines (will be sorted by start time)
-    init(lines: [TranscriptLine]) {
-        self.lines = lines.sorted { $0.startTime < $1.startTime }
+    /// - Parameters:
+    ///   - lines: Array of transcript lines (will be sorted by start time)
+    ///   - sessionStartTime: Optional session start time
+    ///   - sessionEndTime: Optional session end time
+    nonisolated init(lines: [TranscriptLine], sessionStartTime: Date? = nil, sessionEndTime: Date? = nil) {
+        let sortedLines = lines.sorted { $0.startTime < $1.startTime }
+        self.title = "Untitled"
+        self.lines = sortedLines
+        self.sessionStartTime = sessionStartTime
+        self.sessionEndTime = sessionEndTime
+        // Initialize cache directly (safe during initialization)
+        let snapshot = DocumentData(
+            lines: sortedLines,
+            sessionStartTime: sessionStartTime,
+            sessionEndTime: sessionEndTime
+        )
+        snapshotLock.lock()
+        cachedSnapshot = snapshot
+        snapshotLock.unlock()
     }
     
     /// Start a new recording session.
+    @MainActor
     func startSession() {
         sessionStartTime = Date()
         sessionEndTime = nil
         // Keep existing lines instead of clearing them
+        updateCachedSnapshot()
     }
     
     /// End the current recording session.
+    @MainActor
     func endSession() {
         sessionEndTime = Date()
+        updateCachedSnapshot()
     }
     
     /// Add a new transcript line, maintaining time order.
     /// - Parameter line: The transcript line to add
+    @MainActor
     func addLine(_ line: TranscriptLine) {
         // Insert in sorted order by start time
         if let insertIndex = lines.firstIndex(where: { $0.startTime > line.startTime }) {
@@ -102,12 +215,14 @@ class TranscriptDocument: ObservableObject {
         } else {
             lines.append(line)
         }
+        updateCachedSnapshot()
     }
     
     /// Update an existing transcript line by ID.
     /// - Parameters:
     ///   - id: The ID of the line to update
     ///   - text: The new text content
+    @MainActor
     func updateLine(id: UInt64, text: String) {
         if let index = lines.firstIndex(where: { $0.id == id }) {
             var updatedLine = lines[index]
@@ -115,17 +230,21 @@ class TranscriptDocument: ObservableObject {
             lines[index] = updatedLine
             // Re-sort if needed (though startTime shouldn't change)
             lines.sort { $0.startTime < $1.startTime }
+            updateCachedSnapshot()
         }
     }
     
     /// Remove a transcript line by ID.
     /// - Parameter id: The ID of the line to remove
+    @MainActor
     func removeLine(id: UInt64) {
         lines.removeAll { $0.id == id }
+        updateCachedSnapshot()
     }
     
     /// Get all lines as a single formatted text string.
     /// - Returns: All transcript lines joined with newlines
+    @MainActor
     func getFullText() -> String {
         lines.map { $0.text }.joined(separator: "\n")
     }
@@ -135,6 +254,7 @@ class TranscriptDocument: ObservableObject {
     ///   - startTime: Start of the time range in seconds
     ///   - endTime: End of the time range in seconds
     /// - Returns: Array of lines within the time range
+    @MainActor
     func getLines(inTimeRange startTime: TimeInterval, endTime: TimeInterval) -> [TranscriptLine] {
         lines.filter { line in
             line.startTime >= startTime && line.startTime <= endTime
@@ -142,10 +262,12 @@ class TranscriptDocument: ObservableObject {
     }
     
     /// Clear all transcript lines.
+    @MainActor
     func clear() {
         lines.removeAll()
         sessionStartTime = nil
         sessionEndTime = nil
+        updateCachedSnapshot()
     }
 }
 
@@ -166,48 +288,30 @@ extension TranscriptDocument {
             self.sessionEndTime = document.sessionEndTime
             self.version = 1
         }
-    }
-    
-    /// Encode the document to data for saving.
-    /// - Returns: Encoded data, or nil if encoding fails
-    func encode() -> Data? {
-        let data = DocumentData(from: self)
-        return try? JSONEncoder().encode(data)
+        
+        // Nonisolated initializer for use from background threads
+        nonisolated init(lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?) {
+            self.lines = lines
+            self.sessionStartTime = sessionStartTime
+            self.sessionEndTime = sessionEndTime
+            self.version = 1
+        }
     }
     
     /// Decode the document from data.
     /// - Parameter data: The encoded data
     /// - Returns: A new TranscriptDocument, or nil if decoding fails
-    static func decode(from data: Data) -> TranscriptDocument? {
+    nonisolated static func decode(from data: Data) -> TranscriptDocument? {
         guard let documentData = try? JSONDecoder().decode(DocumentData.self, from: data) else {
             return nil
         }
         
-        let document = TranscriptDocument(lines: documentData.lines)
-        document.sessionStartTime = documentData.sessionStartTime
-        document.sessionEndTime = documentData.sessionEndTime
-        return document
-    }
-    
-    /// Save the document to a file.
-    /// - Parameter url: The file URL to save to
-    /// - Throws: Error if saving fails
-    func save(to url: URL) throws {
-        guard let data = encode() else {
-            throw NSError(domain: "TranscriptDocument", code: 1,
-                         userInfo: [NSLocalizedDescriptionKey: "Failed to encode document"])
-        }
-        try data.write(to: url)
-    }
-    
-    /// Load a document from a file.
-    /// - Parameter url: The file URL to load from
-    /// - Returns: A new TranscriptDocument, or nil if loading fails
-    static func load(from url: URL) -> TranscriptDocument? {
-        guard let data = try? Data(contentsOf: url) else {
-            return nil
-        }
-        return decode(from: data)
+        // Create document with all data in the initializer
+        return TranscriptDocument(
+            lines: documentData.lines,
+            sessionStartTime: documentData.sessionStartTime,
+            sessionEndTime: documentData.sessionEndTime
+        )
     }
 }
 

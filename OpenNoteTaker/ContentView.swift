@@ -11,6 +11,7 @@ import OSLog
 import Combine
 
 struct ContentView: View {
+    @ObservedObject var document: TranscriptDocument
     
     @State var isUnauthorized = false
     
@@ -19,7 +20,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Main content area - transcript view fills entire space
-            TranscriptView(document: screenRecorder.transcriptDocument)
+            TranscriptView(document: document)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Floating recording button overlay at bottom center
@@ -67,8 +68,9 @@ struct ContentView: View {
             }
         }
         .background(Color.white)
-        .navigationTitle("Open Note Taker")
         .onAppear {
+            // Connect the document from DocumentGroup to ScreenRecorder
+            screenRecorder.transcriptDocument = document
             Task {
                 let canRecord = await screenRecorder.canRecord
                 if !canRecord {
@@ -81,6 +83,6 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ContentView(document: TranscriptDocument())
     }
 }
