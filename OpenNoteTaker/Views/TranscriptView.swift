@@ -27,77 +27,86 @@ struct TranscriptView: View {
     }
     
     private func scrollToBottom(proxy: ScrollViewProxy) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation {
+        // Use a slightly longer delay to ensure content is laid out
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.easeOut(duration: 0.2)) {
                 proxy.scrollTo("bottom", anchor: .bottom)
             }
         }
     }
     
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(filteredLines) { line in
-                        TranscriptLineView(line: line)
-                            .id(line.id)
-                    }
-                    
-                    // Invisible anchor at the bottom to detect scroll position
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom")
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.preference(
-                                    key: ScrollOffsetPreferenceKey.self,
-                                    value: geometry.frame(in: .named("scroll")).minY
-                                )
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        LazyVStack(alignment: .leading, spacing: 8) {
+                            ForEach(filteredLines) { line in
+                                TranscriptLineView(line: line)
+                                    .id(line.id)
                             }
-                        )
-                }
-                .padding()
-                .padding(.bottom, 120) // Extra bottom padding to avoid recording button overlap
-            }
-            .coordinateSpace(name: "scroll")
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                // If we're near the bottom (within 170 points to account for padding), consider it "at bottom"
-                shouldAutoScroll = offset < 170
-            }
-            .onChange(of: filteredLines.count) { oldCount, newCount in
-                // Only auto-scroll if we were at the bottom and new lines were added
-                if shouldAutoScroll && newCount > oldCount {
-                    scrollToBottom(proxy: proxy)
-                }
-            }
-            .onChange(of: filteredLines.last?.id) { oldId, newId in
-                // Check if a new line was added (ID changed)
-                if shouldAutoScroll, let newId = newId, newId != lastLineId {
-                    scrollToBottom(proxy: proxy)
-                    lastLineId = newId
-                    if let lastLine = filteredLines.last {
-                        lastLineText = lastLine.text
-                    }
-                } else if let newId = newId {
-                    lastLineId = newId
-                    if let lastLine = filteredLines.last {
-                        lastLineText = lastLine.text
+                        }
+                        .padding()
+                        
+                        // Extra bottom padding to avoid recording button overlap
+                        Spacer()
+                            .frame(height: 50)
+                            .id("bottom")
+                            .background(
+                                GeometryReader { scrollGeometry in
+                                    // Use global coordinates to check if bottom anchor is visible
+                                    let anchorGlobal = scrollGeometry.frame(in: .global)
+                                    let viewportGlobal = geometry.frame(in: .global)
+                                    // Check if anchor is visible in viewport (with generous margin)
+                                    let isVisible = anchorGlobal.minY <= viewportGlobal.maxY + 50
+                                    Color.clear.preference(
+                                        key: ScrollOffsetPreferenceKey.self,
+                                        value: isVisible ? 0 : 1000
+                                    )
+                                }
+                            )
                     }
                 }
-            }
-            .onChange(of: filteredLines.last?.text) { oldText, newText in
-                // Check if the last line's text was updated
-                if shouldAutoScroll, let newText = newText, newText != lastLineText {
-                    scrollToBottom(proxy: proxy)
-                    lastLineText = newText
-                } else if let newText = newText {
-                    lastLineText = newText
+                .coordinateSpace(name: "scroll")
+                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    // If value is 0, the bottom anchor is visible (we're at/near bottom)
+                    shouldAutoScroll = value < 10
                 }
-            }
-            .onAppear {
-                // Initialize tracking state
-                lastLineId = filteredLines.last?.id
-                lastLineText = filteredLines.last?.text ?? ""
+                .onChange(of: filteredLines.count) { oldCount, newCount in
+                    // Only auto-scroll if we were at the bottom and new lines were added
+                    if shouldAutoScroll && newCount > oldCount {
+                        scrollToBottom(proxy: proxy)
+                    }
+                }
+                .onChange(of: filteredLines.last?.id) { oldId, newId in
+                    // Check if a new line was added (ID changed)
+                    if shouldAutoScroll, let newId = newId, newId != lastLineId {
+                        scrollToBottom(proxy: proxy)
+                        lastLineId = newId
+                        if let lastLine = filteredLines.last {
+                            lastLineText = lastLine.text
+                        }
+                    } else if let newId = newId {
+                        lastLineId = newId
+                        if let lastLine = filteredLines.last {
+                            lastLineText = lastLine.text
+                        }
+                    }
+                }
+                .onChange(of: filteredLines.last?.text) { oldText, newText in
+                    // Check if the last line's text was updated
+                    if shouldAutoScroll, let newText = newText, newText != lastLineText {
+                        scrollToBottom(proxy: proxy)
+                        lastLineText = newText
+                    } else if let newText = newText {
+                        lastLineText = newText
+                    }
+                }
+                .onAppear {
+                    // Initialize tracking state
+                    lastLineId = filteredLines.last?.id
+                    lastLineText = filteredLines.last?.text ?? ""
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
