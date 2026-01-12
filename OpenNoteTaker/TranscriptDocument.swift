@@ -158,13 +158,11 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
     }
     
     /// Initialize an empty transcript document.
-    @MainActor
-    init() {
+    nonisolated init() {
         self.title = "Untitled"
         self.lines = []
         self.sessionStartTime = nil
         self.sessionEndTime = nil
-        updateCachedSnapshot()
     }
     
     /// Initialize a transcript document with existing lines.

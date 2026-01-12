@@ -24,31 +24,13 @@
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access to transcribe audio from your microphone.</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
+    <key>NSQuitAlwaysKeepsWindows</key>
+    <true/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
 			<string>ai.moonshine.opennotetaker.transcript</string>
-			<key>UTTypeDescription</key>
-			<string>OpenNoteTaker Transcript</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>transcript</string>
-				</array>
-			</dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-				<string>public.text</string>
-			</array>
-		</dict>
-		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>com.opennotetaker.transcript</string>
 			<key>UTTypeDescription</key>
 			<string>OpenNoteTaker Transcript</string>
 			<key>UTTypeTagSpecification</key>
@@ -75,7 +57,6 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>ai.moonshine.opennotetaker.transcript</string>
-				<string>com.opennotetaker.transcript</string>
 			</array>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
