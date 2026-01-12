@@ -7,27 +7,25 @@ The entry point into this app.
 import SwiftUI
 import AppKit
 
-@main
-struct OpenNoteTakerApp: App {
-    init() {
-        // Ensure a new document window is created on app launch if no documents are restored
-        // Observe when the app finishes launching to check if we need to create a new document
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didFinishLaunchingNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            // Use a small delay to allow document restoration to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                let documentController = NSDocumentController.shared
-                // Only create a new document if no documents are currently open
-                // This handles the case where no documents were restored from a previous session
-                if documentController.documents.isEmpty {
-                    documentController.newDocument(nil)
-                }
+// AppDelegate to handle automatic document creation on launch
+class AppDelegate: NSObject, NSApplicationDelegate {
+    // Return true to automatically open an untitled file when the app launches
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        return true
+    }
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DispatchQueue.main.async {
+            if NSDocumentController.shared.documents.isEmpty {
+                NSDocumentController.shared.newDocument(nil)
             }
         }
     }
+}
+
+@main
+struct OpenNoteTakerApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
         DocumentGroup(newDocument: {
@@ -52,6 +50,6 @@ struct OpenNoteTakerApp: App {
                 .frame(minWidth: 100, minHeight: 100)
                 .background(.white)
         }
-        .defaultSize(width: 960, height: 724)
+        .defaultSize(width: 480, height: 724)
     }
 }
