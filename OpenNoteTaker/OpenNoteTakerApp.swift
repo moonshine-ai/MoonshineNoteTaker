@@ -11,8 +11,9 @@ struct OpenNoteTakerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(minWidth: 960, minHeight: 724)
+                .frame(minWidth: 400, minHeight: 300)
                 .background(.white)
         }
+        .defaultSize(width: 960, height: 724)
     }
 }

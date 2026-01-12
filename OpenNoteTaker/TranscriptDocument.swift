@@ -85,7 +85,7 @@ class TranscriptDocument: ObservableObject {
     func startSession() {
         sessionStartTime = Date()
         sessionEndTime = nil
-        lines.removeAll()
+        // Keep existing lines instead of clearing them
     }
     
     /// End the current recording session.

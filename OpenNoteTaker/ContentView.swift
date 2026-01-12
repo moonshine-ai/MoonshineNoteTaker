@@ -12,15 +12,19 @@ import Combine
 
 struct ContentView: View {
     
-    @State var userStopped = false
     @State var isUnauthorized = false
     
     @StateObject var screenRecorder = ScreenRecorder()
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Top section with recording button
-            HStack {
+        ZStack {
+            // Main content area - transcript view fills entire space
+            TranscriptView(document: screenRecorder.transcriptDocument)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // Floating recording button overlay at bottom center
+            VStack {
+                Spacer()
                 Button(action: {
                     Task {
                         if screenRecorder.isRunning {
@@ -33,62 +37,33 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    HStack {
-                        Image(systemName: screenRecorder.isRunning ? "stop.circle.fill" : "record.circle.fill")
-                            .font(.title2)
-                        Text(screenRecorder.isRunning ? "Stop Recording" : "Start Recording")
-                            .font(.headline)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(screenRecorder.isRunning ? Color.red : Color.blue)
-                    .cornerRadius(8)
+                    Image(systemName: screenRecorder.isRunning ? "pause.circle.fill" : "record.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .padding(10)
+                        .background(screenRecorder.isRunning ? Color.red : Color.blue)
+                        .cornerRadius(8)
+                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
                 .buttonStyle(.plain)
-                Spacer()
+                .padding(.bottom, 10)
             }
-            .padding()
-            .background(Color.white)
             
-            // Main content area - split between capture preview and transcript
-            HSplitView {
-                // Left side: Capture preview
-                screenRecorder.capturePreview
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .aspectRatio(screenRecorder.contentSize, contentMode: .fit)
-                    .padding(8)
-                    .overlay {
-                        if userStopped {
-                            Image(systemName: "nosign")
-                                .font(.system(size: 250, weight: .bold))
-                                .foregroundColor(Color(white: 0.3, opacity: 1.0))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color(white: 0.0, opacity: 0.5))
-                        }
+            // Unauthorized overlay
+            if isUnauthorized {
+                VStack {
+                    Spacer()
+                    VStack {
+                        Text("No screen recording permission.")
+                            .font(.largeTitle)
+                            .padding(.top)
+                        Text("Open System Settings and go to Privacy & Security > Screen Recording to grant permission.")
+                            .font(.title2)
+                            .padding(.bottom)
                     }
-                    .overlay {
-                        if isUnauthorized {
-                            VStack() {
-                                Spacer()
-                                VStack {
-                                    Text("No screen recording permission.")
-                                        .font(.largeTitle)
-                                        .padding(.top)
-                                    Text("Open System Settings and go to Privacy & Security > Screen Recording to grant permission.")
-                                        .font(.title2)
-                                        .padding(.bottom)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .background(.red)
-                                
-                            }
-                        }
-                    }
-                
-                // Right side: Transcript view
-                TranscriptView(document: screenRecorder.transcriptDocument)
-                    .frame(minWidth: 300, idealWidth: 400, maxWidth: CGFloat.infinity)
+                    .frame(maxWidth: .infinity)
+                    .background(.red)
+                }
             }
         }
         .background(Color.white)

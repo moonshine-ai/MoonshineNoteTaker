@@ -7,27 +7,106 @@ A view that displays transcript lines in a scrollable list.
 
 import SwiftUI
 
-/// A view that displays transcript lines vertically stacked with timestamps.
+/// A preference key to track scroll position.
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+/// A view that displays transcript lines vertically stacked.
 struct TranscriptView: View {
     @ObservedObject var document: TranscriptDocument
+    @State private var shouldAutoScroll = true
+    @State private var lastLineId: UInt64?
+    @State private var lastLineText: String = ""
+    
+    private var filteredLines: [TranscriptLine] {
+        document.lines.filter { !$0.text.isEmpty }
+    }
+    
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation {
+                proxy.scrollTo("bottom", anchor: .bottom)
+            }
+        }
+    }
     
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(document.lines.filter { !$0.text.isEmpty }) { line in
-                    TranscriptLineView(line: line, sessionStartTime: document.sessionStartTime)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(filteredLines) { line in
+                        TranscriptLineView(line: line)
+                            .id(line.id)
+                    }
+                    
+                    // Invisible anchor at the bottom to detect scroll position
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottom")
+                        .background(
+                            GeometryReader { geometry in
+                                Color.clear.preference(
+                                    key: ScrollOffsetPreferenceKey.self,
+                                    value: geometry.frame(in: .named("scroll")).minY
+                                )
+                            }
+                        )
+                }
+                .padding()
+                .padding(.bottom, 120) // Extra bottom padding to avoid recording button overlap
+            }
+            .coordinateSpace(name: "scroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                // If we're near the bottom (within 170 points to account for padding), consider it "at bottom"
+                shouldAutoScroll = offset < 170
+            }
+            .onChange(of: filteredLines.count) { oldCount, newCount in
+                // Only auto-scroll if we were at the bottom and new lines were added
+                if shouldAutoScroll && newCount > oldCount {
+                    scrollToBottom(proxy: proxy)
                 }
             }
-            .padding()
+            .onChange(of: filteredLines.last?.id) { oldId, newId in
+                // Check if a new line was added (ID changed)
+                if shouldAutoScroll, let newId = newId, newId != lastLineId {
+                    scrollToBottom(proxy: proxy)
+                    lastLineId = newId
+                    if let lastLine = filteredLines.last {
+                        lastLineText = lastLine.text
+                    }
+                } else if let newId = newId {
+                    lastLineId = newId
+                    if let lastLine = filteredLines.last {
+                        lastLineText = lastLine.text
+                    }
+                }
+            }
+            .onChange(of: filteredLines.last?.text) { oldText, newText in
+                // Check if the last line's text was updated
+                if shouldAutoScroll, let newText = newText, newText != lastLineText {
+                    scrollToBottom(proxy: proxy)
+                    lastLineText = newText
+                } else if let newText = newText {
+                    lastLineText = newText
+                }
+            }
+            .onAppear {
+                // Initialize tracking state
+                lastLineId = filteredLines.last?.id
+                lastLineText = filteredLines.last?.text ?? ""
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-/// A view that displays a single transcript line with timestamp.
+/// A view that displays a single transcript line.
 struct TranscriptLineView: View {
     let line: TranscriptLine
-    let sessionStartTime: Date?
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -37,13 +116,7 @@ struct TranscriptLineView: View {
                 .foregroundColor(.secondary)
                 .frame(width: 20, alignment: .leading)
             
-            // Time label
-            Text(formattedTime)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
-                .frame(width: 80, alignment: .trailing)
-            
-            // Transcript text on the right
+            // Transcript text
             Text(line.text)
                 .font(.body)
                 .textSelection(.enabled)
@@ -61,32 +134,6 @@ struct TranscriptLineView: View {
         case .systemAudio:
             return "speaker.wave.2.fill"
         }
-    }
-    
-    /// Format the start time as HH:MM:SS relative to session start.
-    private var formattedTime: String {
-        guard let sessionStart = sessionStartTime else {
-            return formatTimeInterval(line.startTime)
-        }
-        
-        // Calculate absolute time by adding startTime to session start
-        let absoluteTime = sessionStart.addingTimeInterval(line.startTime)
-        return formatDate(absoluteTime)
-    }
-    
-    /// Format a Date as HH:MM:SS.
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: date)
-    }
-    
-    /// Format a TimeInterval as HH:MM:SS.
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let hours = Int(interval) / 3600
-        let minutes = (Int(interval) % 3600) / 60
-        let seconds = Int(interval) % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 
