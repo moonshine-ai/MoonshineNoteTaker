@@ -69,6 +69,15 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
     /// Lock for thread-safe access to cached snapshot
     private nonisolated let snapshotLock = NSLock()
     
+    /// Undo manager for tracking document changes
+    @MainActor
+    var undoManager: UndoManager? {
+        get { undoManagerValue }
+        set { undoManagerValue = newValue }
+    }
+    
+    private nonisolated(unsafe) var undoManagerValue: UndoManager?
+    
     // MARK: - ReferenceFileDocument Conformance
     
     static var readableContentTypes: [UTType] {
@@ -193,6 +202,8 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
         sessionStartTime = Date()
         sessionEndTime = nil
         // Keep existing lines instead of clearing them
+        undoManager?.registerUndo(withTarget: self) { doc in}
+        undoManager?.setActionName("Start Session")
         updateCachedSnapshot()
     }
     

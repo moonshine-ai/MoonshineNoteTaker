@@ -13,6 +13,8 @@ import Combine
 struct ContentView: View {
     @ObservedObject var document: TranscriptDocument
     
+    @Environment(\.undoManager) private var undoManager
+    
     @State var isUnauthorized = false
     
     @StateObject var screenRecorder = ScreenRecorder()
@@ -69,6 +71,9 @@ struct ContentView: View {
         }
         .background(Color.white)
         .onAppear {
+            // Connect the undo manager from DocumentGroup to the document
+            document.undoManager = undoManager
+            
             // Connect the document from DocumentGroup to ScreenRecorder
             screenRecorder.transcriptDocument = document
             Task {
@@ -77,6 +82,10 @@ struct ContentView: View {
                     isUnauthorized = true
                 }
             }
+        }
+        .onChange(of: undoManager) { newValue in
+            // Update the document's undo manager if it changes
+            document.undoManager = newValue
         }
     }
 }
