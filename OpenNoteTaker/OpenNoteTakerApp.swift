@@ -13,7 +13,6 @@ struct OpenNoteTakerApp: App {
     }
     var body: some Scene {
         DocumentGroup(newDocument: {
-            print("newDocument closure called!")
             return TranscriptDocument()
         }) { configuration in
             ContentView(document: configuration.document)
