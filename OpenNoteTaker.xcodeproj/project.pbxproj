@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -11,11 +11,12 @@
 		5951911E2F105ADC005425B3 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 5951911D2F105ADC005425B3 /* Moonshine */; };
 		595191202F105D28005425B3 /* models in Resources */ = {isa = PBXBuildFile; fileRef = 5951911F2F105D28005425B3 /* models */; };
 		59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5522F108578002E3525 /* TranscriptDocument.swift */; };
+		59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5542F108778002E3525 /* TranscriptView.swift */; };
+		59AEB5572F108909002E3525 /* AudioFileWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5562F108909002E3525 /* AudioFileWriter.swift */; };
+		59AEB55A2F11C715002E3525 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 59AEB5592F11C715002E3525 /* Moonshine */; };
 		C44093732816EC8800FB8386 /* Synth.aif in Resources */ = {isa = PBXBuildFile; fileRef = C44093722816EC8800FB8386 /* Synth.aif */; };
 		C44093752816EC9C00FB8386 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44093742816EC9C00FB8386 /* AudioPlayer.swift */; };
 		C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C470F0802811C5CB00D29309 /* ScreenRecorder.swift */; };
-		C471DFFB2809F440001D24C9 /* PowerMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C471DFF92809F440001D24C9 /* PowerMeter.swift */; };
-		C471DFFE280A0968001D24C9 /* AudioLevelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C471DFFD280A0968001D24C9 /* AudioLevelsView.swift */; };
 		C4729DA52821BFAD00AAC477 /* MaterialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4729DA42821BFAD00AAC477 /* MaterialView.swift */; };
 		C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */; };
 		C4B0DAAF276BA4480015082A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAAE276BA4480015082A /* Assets.xcassets */; };
@@ -31,14 +32,14 @@
 		122776EC2A82BC6F0083737C /* PickerSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PickerSettingsView.swift; sourceTree = "<group>"; };
 		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = OpenNoteTaker/models; sourceTree = "<group>"; };
 		59AEB5522F108578002E3525 /* TranscriptDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptDocument.swift; sourceTree = "<group>"; };
+		59AEB5542F108778002E3525 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
+		59AEB5562F108909002E3525 /* AudioFileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileWriter.swift; sourceTree = "<group>"; };
 		7C6C99F1D4B6E3EBA3A7B7DF /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		8D89E0E7125AFE6B4E2E6500 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9AEEB9169F5D7FC75E6B35A2 /* SampleCode.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = SampleCode.xcconfig; path = Configuration/SampleCode.xcconfig; sourceTree = "<group>"; };
 		C44093722816EC8800FB8386 /* Synth.aif */ = {isa = PBXFileReference; lastKnownFileType = file; path = Synth.aif; sourceTree = "<group>"; };
 		C44093742816EC9C00FB8386 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		C470F0802811C5CB00D29309 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
-		C471DFF92809F440001D24C9 /* PowerMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerMeter.swift; sourceTree = "<group>"; };
-		C471DFFD280A0968001D24C9 /* AudioLevelsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelsView.swift; sourceTree = "<group>"; };
 		C4729DA42821BFAD00AAC477 /* MaterialView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MaterialView.swift; sourceTree = "<group>"; };
 		C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AudioTranscriber.swift; sourceTree = "<group>"; };
 		C4B0DAA7276BA4460015082A /* OpenNoteTaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenNoteTaker.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -58,6 +59,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5951911E2F105ADC005425B3 /* Moonshine in Frameworks */,
+				59AEB55A2F11C715002E3525 /* Moonshine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,9 +77,9 @@
 		C41D1B1D2814BD230033613F /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				59AEB5542F108778002E3525 /* TranscriptView.swift */,
 				C4B0DABC276BA4B50015082A /* CapturePreview.swift */,
 				C4EB90D328108656006A595C /* ConfigurationView.swift */,
-				C471DFFD280A0968001D24C9 /* AudioLevelsView.swift */,
 				C4729DA42821BFAD00AAC477 /* MaterialView.swift */,
 				122776EC2A82BC6F0083737C /* PickerSettingsView.swift */,
 			);
@@ -115,11 +117,11 @@
 		C4B0DAA9276BA4460015082A /* OpenNoteTaker */ = {
 			isa = PBXGroup;
 			children = (
+				59AEB5562F108909002E3525 /* AudioFileWriter.swift */,
 				59AEB5522F108578002E3525 /* TranscriptDocument.swift */,
 				C470F0802811C5CB00D29309 /* ScreenRecorder.swift */,
 				C4B0DABD276BA4B50015082A /* CaptureEngine.swift */,
 				C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */,
-				C471DFF92809F440001D24C9 /* PowerMeter.swift */,
 				C44093742816EC9C00FB8386 /* AudioPlayer.swift */,
 				C4B0DABB276BA4B50015082A /* ContentView.swift */,
 				C41D1B1D2814BD230033613F /* Views */,
@@ -195,7 +197,7 @@
 			);
 			mainGroup = C4B0DA9E276BA4460015082A;
 			packageReferences = (
-				5951911C2F105ADC005425B3 /* XCRemoteSwiftPackageReference "moonshine-swift" */,
+				59AEB5582F11C715002E3525 /* XCLocalSwiftPackageReference "../moonshine-v2/swift" */,
 			);
 			productRefGroup = C4B0DAA8276BA4460015082A /* Products */;
 			projectDirPath = "";
@@ -227,17 +229,17 @@
 			files = (
 				C4B0DABF276BA4B50015082A /* CapturePreview.swift in Sources */,
 				C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */,
+				59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */,
 				C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */,
 				59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */,
 				C44093752816EC9C00FB8386 /* AudioPlayer.swift in Sources */,
 				C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */,
 				C4B0DABA276BA49F0015082A /* OpenNoteTakerApp.swift in Sources */,
-				C471DFFE280A0968001D24C9 /* AudioLevelsView.swift in Sources */,
 				122776ED2A82BC6F0083737C /* PickerSettingsView.swift in Sources */,
 				C4EB90D428108656006A595C /* ConfigurationView.swift in Sources */,
 				C4729DA52821BFAD00AAC477 /* MaterialView.swift in Sources */,
 				C4B0DABE276BA4B50015082A /* ContentView.swift in Sources */,
-				C471DFFB2809F440001D24C9 /* PowerMeter.swift in Sources */,
+				59AEB5572F108909002E3525 /* AudioFileWriter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,6 +461,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		59AEB5582F11C715002E3525 /* XCLocalSwiftPackageReference "../moonshine-v2/swift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../moonshine-v2/swift";
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		5951911C2F105ADC005425B3 /* XCRemoteSwiftPackageReference "moonshine-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -474,6 +483,10 @@
 		5951911D2F105ADC005425B3 /* Moonshine */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5951911C2F105ADC005425B3 /* XCRemoteSwiftPackageReference "moonshine-swift" */;
+			productName = Moonshine;
+		};
+		59AEB5592F11C715002E3525 /* Moonshine */ = {
+			isa = XCSwiftPackageProductDependency;
 			productName = Moonshine;
 		};
 /* End XCSwiftPackageProductDependency section */

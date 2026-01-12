@@ -7,11 +7,12 @@ A document model that holds transcript lines in time order for display and persi
 
 import Foundation
 import SwiftUI
+import ScreenCaptureKit
 
 /// Represents a single transcript line with timing information.
 struct TranscriptLine: Identifiable, Codable, Equatable {
     /// Unique identifier for the line.
-    let id: UUID
+    let id: UInt64
     
     /// The transcribed text content.
     var text: String
@@ -29,20 +30,21 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
     
     /// Timestamp when this line was created/received.
     let timestamp: Date
+
+    enum Source: String, Codable, Equatable {
+        case microphone
+        case systemAudio
+    }
+
+    let source: Source
     
-    /// Initialize a transcript line.
-    /// - Parameters:
-    ///   - id: Unique identifier (defaults to new UUID)
-    ///   - text: The transcribed text
-    ///   - startTime: Start time in seconds
-    ///   - duration: Duration in seconds
-    ///   - timestamp: When the line was created (defaults to now)
-    init(id: UUID = UUID(), text: String, startTime: TimeInterval, duration: TimeInterval, timestamp: Date = Date()) {
+    init(id: UInt64, text: String, startTime: TimeInterval, duration: TimeInterval, timestamp: Date = Date(), source: TranscriptLine.Source) {
         self.id = id
         self.text = text
         self.startTime = startTime
         self.duration = duration
         self.timestamp = timestamp
+        self.source = source
     }
 }
 
@@ -106,7 +108,7 @@ class TranscriptDocument: ObservableObject {
     /// - Parameters:
     ///   - id: The ID of the line to update
     ///   - text: The new text content
-    func updateLine(id: UUID, text: String) {
+    func updateLine(id: UInt64, text: String) {
         if let index = lines.firstIndex(where: { $0.id == id }) {
             var updatedLine = lines[index]
             updatedLine.text = text
@@ -118,7 +120,7 @@ class TranscriptDocument: ObservableObject {
     
     /// Remove a transcript line by ID.
     /// - Parameter id: The ID of the line to remove
-    func removeLine(id: UUID) {
+    func removeLine(id: UInt64) {
         lines.removeAll { $0.id == id }
     }
     

@@ -51,37 +51,44 @@ struct ContentView: View {
             .padding()
             .background(Color.white)
             
-            // Main content area
-            screenRecorder.capturePreview
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .aspectRatio(screenRecorder.contentSize, contentMode: .fit)
-                .padding(8)
-                .overlay {
-                    if userStopped {
-                        Image(systemName: "nosign")
-                            .font(.system(size: 250, weight: .bold))
-                            .foregroundColor(Color(white: 0.3, opacity: 1.0))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color(white: 0.0, opacity: 0.5))
-                    }
-                }
-            .overlay {
-                if isUnauthorized {
-                    VStack() {
-                        Spacer()
-                        VStack {
-                            Text("No screen recording permission.")
-                                .font(.largeTitle)
-                                .padding(.top)
-                            Text("Open System Settings and go to Privacy & Security > Screen Recording to grant permission.")
-                                .font(.title2)
-                                .padding(.bottom)
+            // Main content area - split between capture preview and transcript
+            HSplitView {
+                // Left side: Capture preview
+                screenRecorder.capturePreview
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .aspectRatio(screenRecorder.contentSize, contentMode: .fit)
+                    .padding(8)
+                    .overlay {
+                        if userStopped {
+                            Image(systemName: "nosign")
+                                .font(.system(size: 250, weight: .bold))
+                                .foregroundColor(Color(white: 0.3, opacity: 1.0))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(white: 0.0, opacity: 0.5))
                         }
-                        .frame(maxWidth: .infinity)
-                        .background(.red)
-                        
                     }
-                }
+                    .overlay {
+                        if isUnauthorized {
+                            VStack() {
+                                Spacer()
+                                VStack {
+                                    Text("No screen recording permission.")
+                                        .font(.largeTitle)
+                                        .padding(.top)
+                                    Text("Open System Settings and go to Privacy & Security > Screen Recording to grant permission.")
+                                        .font(.title2)
+                                        .padding(.bottom)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .background(.red)
+                                
+                            }
+                        }
+                    }
+                
+                // Right side: Transcript view
+                TranscriptView(document: screenRecorder.transcriptDocument)
+                    .frame(minWidth: 300, idealWidth: 400, maxWidth: CGFloat.infinity)
             }
         }
         .background(Color.white)

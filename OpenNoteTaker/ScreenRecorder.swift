@@ -11,11 +11,6 @@ import OSLog
 import SwiftUI
 import MoonshineVoice
 
-/// A provider of audio levels from the captured samples.
-class AudioLevelsProvider: ObservableObject {
-    @Published var audioLevels = AudioLevels.zero
-}
-
 @MainActor
 class ScreenRecorder: NSObject,
                       ObservableObject,
@@ -120,11 +115,6 @@ class ScreenRecorder: NSObject,
     @Published var isAudioCaptureEnabled = true {
         didSet {
             updateEngine()
-            if isAudioCaptureEnabled {
-                startAudioMetering()
-            } else {
-                stopAudioMetering()
-            }
         }
     }
     @Published var microphoneId: String?
@@ -151,10 +141,6 @@ class ScreenRecorder: NSObject,
         }
     }
     @Published var isAppAudioExcluded = false { didSet { updateEngine() } }
-    @Published private(set) var audioLevelsProvider = AudioLevelsProvider()
-    // A value that specifies how often to retrieve calculated audio levels.
-    private let audioLevelRefreshRate: TimeInterval = 0.1
-    private var audioMeterCancellable: AnyCancellable?
     
     /// The transcript document that holds all transcript lines.
     @Published var transcriptDocument = TranscriptDocument()
@@ -214,8 +200,6 @@ class ScreenRecorder: NSObject,
         
         // If the user enables audio capture, start monitoring the audio stream.
         if isAudioCaptureEnabled {
-            startAudioMetering()
-            // Initialize and start transcription
             initializeTranscription()
         }
         
@@ -244,7 +228,6 @@ class ScreenRecorder: NSObject,
     func stop() async {
         guard isRunning else { return }
         await captureEngine.stopCapture()
-        stopAudioMetering()
         try? stopRecordingOutput()
         removeMicrophoneOutput()
         // Stop transcription
@@ -259,19 +242,7 @@ class ScreenRecorder: NSObject,
             NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: recordingOutputPath)
         }
     }
-    
-    private func startAudioMetering() {
-        audioMeterCancellable = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect().sink { [weak self] _ in
-            guard let self = self else { return }
-            self.audioLevelsProvider.audioLevels = self.captureEngine.audioLevels
-        }
-    }
-    
-    private func stopAudioMetering() {
-        audioMeterCancellable?.cancel()
-        audioLevelsProvider.audioLevels = AudioLevels.zero
-    }
-    
+            
     private func addMicrophoneOutput() {
         streamConfiguration.captureMicrophone = true
     }

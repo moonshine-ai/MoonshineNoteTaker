@@ -95,7 +95,6 @@ struct ConfigurationView: View {
                 Toggle("Capture audio", isOn: $screenRecorder.isAudioCaptureEnabled)
                 Toggle("Exclude app audio", isOn: $screenRecorder.isAppAudioExcluded)
                     .disabled(screenRecorder.isAppExcluded)
-                AudioLevelsView(audioLevelsProvider: screenRecorder.audioLevelsProvider)
                 Button {
                     if !audioPlayer.isPlaying {
                         audioPlayer.play()

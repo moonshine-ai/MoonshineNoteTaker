@@ -34,11 +34,7 @@ class CaptureEngine: NSObject, @unchecked Sendable {
     private let videoSampleBufferQueue = DispatchQueue(label: "com.example.apple-samplecode.VideoSampleBufferQueue")
     private let audioSampleBufferQueue = DispatchQueue(label: "com.example.apple-samplecode.AudioSampleBufferQueue")
     private let micSampleBufferQueue = DispatchQueue(label: "com.example.apple-samplecode.MicSampleBufferQueue")
-    
-    // Performs average and peak power calculations on the audio samples.
-    private let powerMeter = PowerMeter()
-    var audioLevels: AudioLevels { powerMeter.levels }
-    
+        
     // Manages audio transcription using Moonshine Voice.
     private let audioTranscriber = AudioTranscriber()
     
@@ -57,10 +53,8 @@ class CaptureEngine: NSObject, @unchecked Sendable {
             let streamOutput = CaptureEngineStreamOutput(continuation: continuation)
             self.streamOutput = streamOutput
             streamOutput.capturedFrameHandler = { continuation.yield($0) }
-            streamOutput.pcmBufferHandler = { buffer in
-                self.powerMeter.process(buffer: buffer)
-                // Feed audio to transcriber
-                try? self.audioTranscriber.addAudio(buffer)
+            streamOutput.audioHandler = { buffer, audioType in
+                try? self.audioTranscriber.addAudio(buffer, audioType: audioType)
             }
 
             do {
@@ -84,8 +78,6 @@ class CaptureEngine: NSObject, @unchecked Sendable {
         } catch {
             continuation?.finish(throwing: error)
         }
-        powerMeter.processSilence()
-        // Stop transcription when capture stops
         try? audioTranscriber.stop()
     }
     
@@ -126,7 +118,7 @@ class CaptureEngine: NSObject, @unchecked Sendable {
 /// A class that handles output from an SCStream, and handles stream errors.
 private class CaptureEngineStreamOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     
-    var pcmBufferHandler: ((AVAudioPCMBuffer) -> Void)?
+    var audioHandler: ((AVAudioPCMBuffer, SCStreamOutputType) -> Void)?
     var capturedFrameHandler: ((CapturedFrame) -> Void)?
     
     // Store the  startCapture continuation, so you can cancel it if an error occurs.
@@ -141,20 +133,7 @@ private class CaptureEngineStreamOutput: NSObject, SCStreamOutput, SCStreamDeleg
         // Return early if the sample buffer is invalid.
         guard sampleBuffer.isValid else { return }
         
-        // Determine which type of data the sample buffer contains.
-        switch outputType {
-        case .screen:
-            // Video capture is disabled - discard frames silently to avoid warnings.
-            // Don't process or yield video frames.
-            return
-        case .audio:
-            // Process audio as an AVAudioPCMBuffer for level calculation.
-            handleAudio(for: sampleBuffer)
-        case .microphone:
-            handleAudio(for: sampleBuffer)
-        @unknown default:
-            fatalError("Encountered unknown stream output type: \(outputType)")
-        }
+        handleAudio(for: sampleBuffer, audioType: outputType)
     }
     
     /// Create a `CapturedFrame` for the video sample buffer.
@@ -191,14 +170,15 @@ private class CaptureEngineStreamOutput: NSObject, SCStreamOutput, SCStreamDeleg
         return frame
     }
     
-    private func handleAudio(for buffer: CMSampleBuffer) -> Void? {
+    private func handleAudio(for buffer: CMSampleBuffer, audioType: SCStreamOutputType) -> Void? {
         // Create an AVAudioPCMBuffer from an audio sample buffer.
         try? buffer.withAudioBufferList { audioBufferList, blockBuffer in
             guard let description = buffer.formatDescription?.audioStreamBasicDescription,
                   let format = AVAudioFormat(standardFormatWithSampleRate: description.mSampleRate, channels: description.mChannelsPerFrame),
                   let samples = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: audioBufferList.unsafePointer)
             else { return }
-            pcmBufferHandler?(samples)
+            
+            self.audioHandler!(samples, audioType)
         }
     }
     
