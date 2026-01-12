@@ -235,7 +235,7 @@ class AudioTranscriber {
                 
         // Calculate relative start time from transcription start
         // Convert Float to TimeInterval (Double)
-        let relativeStartTime: TimeInterval = TimeInterval(line.startTime)
+        let relativeStartTime: Date = transcriptionStartTime?.addingTimeInterval(TimeInterval(line.startTime)) ?? Date()
         
         let source: TranscriptLine.Source = (audioType == SCStreamOutputType.microphone ? TranscriptLine.Source.microphone : TranscriptLine.Source.systemAudio)
 

@@ -18,15 +18,15 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
     /// The transcribed text content.
     var text: String
     
-    /// Start time of the line in seconds from the beginning of the recording.
-    let startTime: TimeInterval
+    /// Start time of the line in wall clock time.
+    let startTime: Date
     
     /// Duration of the line in seconds.
     let duration: TimeInterval
     
     /// End time of the line (startTime + duration).
-    var endTime: TimeInterval {
-        startTime + duration
+    var endTime: Date {
+        startTime.addingTimeInterval(duration)
     }
     
     /// Timestamp when this line was created/received.
@@ -39,7 +39,7 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
 
     let source: Source
     
-    init(id: UInt64, text: String, startTime: TimeInterval, duration: TimeInterval, timestamp: Date = Date(), source: TranscriptLine.Source) {
+    init(id: UInt64, text: String, startTime: Date, duration: TimeInterval, timestamp: Date = Date(), source: TranscriptLine.Source) {
         self.id = id
         self.text = text
         self.startTime = startTime
@@ -246,19 +246,7 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
     func getFullText() -> String {
         lines.map { $0.text }.joined(separator: "\n")
     }
-    
-    /// Get lines within a specific time range.
-    /// - Parameters:
-    ///   - startTime: Start of the time range in seconds
-    ///   - endTime: End of the time range in seconds
-    /// - Returns: Array of lines within the time range
-    @MainActor
-    func getLines(inTimeRange startTime: TimeInterval, endTime: TimeInterval) -> [TranscriptLine] {
-        lines.filter { line in
-            line.startTime >= startTime && line.startTime <= endTime
-        }
-    }
-    
+        
     /// Clear all transcript lines.
     @MainActor
     func clear() {
