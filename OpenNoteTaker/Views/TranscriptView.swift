@@ -118,31 +118,11 @@ struct TranscriptLineView: View {
     let line: TranscriptLine
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Source icon on the left
-            Image(systemName: iconName)
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .frame(width: 20, alignment: .leading)
-            
-            // Transcript text
-            Text(line.text)
-                .font(.body)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.vertical, 4)
-    }
-    
-    /// Returns the SF Symbol name for the source icon.
-    private var iconName: String {
-        switch line.source {
-        case .microphone:
-            return "mic.fill"
-        case .systemAudio:
-            return "speaker.wave.2.fill"
-        }
-    }
+        Text(line.text)
+            .font(.body)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+    }    
 }
 
