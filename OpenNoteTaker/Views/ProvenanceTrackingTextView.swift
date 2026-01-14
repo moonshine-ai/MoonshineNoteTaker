@@ -263,9 +263,15 @@ class ProvenanceTextView: NSTextView {
         
         let textContainer = NSTextContainer(containerSize: NSSize(width: frame.width, height: .greatestFiniteMagnitude))
         textContainer.widthTracksTextView = true
+        textContainer.heightTracksTextView = true
         layoutManager.addTextContainer(textContainer)
         
         self.init(frame: frame, textContainer: textContainer)
+        
+        // Set up to expand vertically
+        self.isVerticallyResizable = true
+        self.isHorizontallyResizable = false
+        self.textContainerInset = NSSize(width: 0, height: 0)
     }
     
     override func didChangeText() {
@@ -310,6 +316,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
         textView.autoresizingMask = [.width]
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
