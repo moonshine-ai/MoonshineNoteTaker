@@ -180,7 +180,6 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
         let sortedLines = lines.sorted { $0.startTime < $1.startTime }
         self.title = "Untitled"
         self.lines = sortedLines
-        addDummyStartLine()
         self.sessionStartTime = sessionStartTime
         self.sessionEndTime = sessionEndTime
         // Initialize cache directly (safe during initialization)
@@ -195,7 +194,7 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
     }
 
     func addDummyStartLine() {
-        let line = TranscriptLine(id: 0, text: " ", startTime: Date(timeIntervalSince1970: 0), duration: 0, source: .systemAudio)
+        let line = TranscriptLine(id: 0, text: "\n", startTime: Date(timeIntervalSince1970: 0), duration: 0, source: .systemAudio)
         lines.insert(line, at: 0)
     }
     
@@ -288,8 +287,26 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
                 print("Shouldn't get here: new line \(segment.text) with id \(segment.metadata.lineId)")
             }
         }
-        lines.sort { $0.startTime < $1.startTime }
+        normalizeLines()
         updateCachedSnapshot()
+    }
+
+    @MainActor
+    func normalizeLines() {
+        lines.sort { $0.startTime < $1.startTime }
+        var idToLineMap: [UInt64: Int] = [:]
+        var newLines: [TranscriptLine] = []
+        // Merge together lines with the same id.
+        for line in lines {
+            if idToLineMap[line.id] == nil {
+                idToLineMap[line.id] = newLines.count
+                newLines.append(line)
+            } else {
+                var index = idToLineMap[line.id]!
+                newLines[index].text += line.text
+            }
+        }
+        lines = newLines
     }
 }
 

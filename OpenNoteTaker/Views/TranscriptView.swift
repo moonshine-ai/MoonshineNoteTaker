@@ -16,6 +16,7 @@ struct TranscriptView: View {
     var body: some View {
         ProvenanceTrackingTextEditor(attributedText: $attributedText)
             .font(.body)
+            .padding(.top, 4)
             .onChange(of: attributedText) { oldValue, newValue in
                 // Only update document if this change didn't come from a document update
                 if !isUpdatingFromDocument {
