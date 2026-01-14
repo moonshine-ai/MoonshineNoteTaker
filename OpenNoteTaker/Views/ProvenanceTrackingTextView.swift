@@ -282,6 +282,7 @@ class ProvenanceTextView: NSTextView {
 
 struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     @Binding var attributedText: NSAttributedString
+    var fontSize: CGFloat
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -290,6 +291,10 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         let textStorage = ProvenanceTrackingTextStorage()
         if attributedText.length > 0 {
             textStorage.setAttributedString(attributedText)
+            // Apply font size to initial text
+            let font = NSFont.systemFont(ofSize: fontSize)
+            let fullRange = NSRange(location: 0, length: textStorage.length)
+            textStorage.addAttribute(.font, value: font, range: fullRange)
         }
         
         let textView = ProvenanceTextView(frame: .zero, textStorage: textStorage)
@@ -298,6 +303,9 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         textView.allowsUndo = true
         textView.isEditable = true
         textView.isSelectable = true
+        
+        // Apply font size as default
+        textView.font = NSFont.systemFont(ofSize: fontSize)
         
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
@@ -319,12 +327,29 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? ProvenanceTextView else { return }
         
+        // Update font size if it changed - apply to all text
+        if let currentFont = textView.font, currentFont.pointSize != fontSize {
+            textView.font = NSFont.systemFont(ofSize: fontSize)
+            // Apply font size to all existing text
+            if let textStorage = textView.textStorage, textStorage.length > 0 {
+                let font = NSFont.systemFont(ofSize: fontSize)
+                let fullRange = NSRange(location: 0, length: textStorage.length)
+                textStorage.addAttribute(.font, value: font, range: fullRange)
+            }
+        }
+        
         let textViewAttrString = textView.attributedString()
         let areEqual = textViewAttrString == attributedText
         
         if !areEqual {            
             let selectedRange = textView.selectedRange()
             textView.textStorage?.setAttributedString(attributedText)
+            // Apply font size to the newly set text
+            if let textStorage = textView.textStorage, textStorage.length > 0 {
+                let font = NSFont.systemFont(ofSize: fontSize)
+                let fullRange = NSRange(location: 0, length: textStorage.length)
+                textStorage.addAttribute(.font, value: font, range: fullRange)
+            }
             if selectedRange.location <= attributedText.length {
                 textView.setSelectedRange(selectedRange)
             }

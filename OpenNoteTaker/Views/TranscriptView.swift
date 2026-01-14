@@ -7,14 +7,28 @@ A view that displays transcript text in an editable TextEditor.
 
 import SwiftUI
 
+/// Observable object to handle zoom actions from menu commands
+@MainActor
+class ZoomHandler: ObservableObject {
+    static let shared = ZoomHandler()
+    
+    var zoomIn: (() -> Void)?
+    var zoomOut: (() -> Void)?
+    var zoomReset: (() -> Void)?
+    
+    private init() {}
+}
+
 /// A view that displays transcript text in an editable TextEditor.
 struct TranscriptView: View {
     @ObservedObject var document: TranscriptDocument
     @State private var attributedText: NSAttributedString = NSAttributedString()
     @State private var isUpdatingFromDocument = false
+    @AppStorage("textViewFontSize") private var fontSize: Double = 13.0
+    @EnvironmentObject var zoomHandler: ZoomHandler
     
     var body: some View {
-        ProvenanceTrackingTextEditor(attributedText: $attributedText)
+        ProvenanceTrackingTextEditor(attributedText: $attributedText, fontSize: fontSize)
             .font(.body)
             .padding(.top, 4)
             .onChange(of: attributedText) { oldValue, newValue in
@@ -36,6 +50,17 @@ struct TranscriptView: View {
                 // Initialize text content from document
                 let segments = document.getViewSegments()
                 attributedText = makeAttributedString(from: segments)
+                
+                // Register zoom handlers
+                zoomHandler.zoomIn = { self.zoomIn() }
+                zoomHandler.zoomOut = { self.zoomOut() }
+                zoomHandler.zoomReset = { self.zoomReset() }
+            }
+            .onChange(of: fontSize) { oldValue, newValue in
+                // Re-register handlers when view updates (in case of view recreation)
+                zoomHandler.zoomIn = { self.zoomIn() }
+                zoomHandler.zoomOut = { self.zoomOut() }
+                zoomHandler.zoomReset = { self.zoomReset() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -91,6 +116,19 @@ struct TranscriptView: View {
         }
         
         return false
+    }
+    
+    // Zoom functions
+    func zoomIn() {
+        fontSize = min(fontSize + 1.0, 72.0)
+    }
+    
+    func zoomOut() {
+        fontSize = max(fontSize - 1.0, 8.0)
+    }
+    
+    func zoomReset() {
+        fontSize = 13.0
     }
 }
 

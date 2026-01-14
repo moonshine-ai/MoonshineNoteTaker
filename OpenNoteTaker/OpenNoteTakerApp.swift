@@ -20,5 +20,23 @@ struct OpenNoteTakerApp: App {
                 .background(.white)
         }
         .defaultSize(width: 480, height: 724)
+        .commands {
+            CommandMenu("View") {
+                Button("Zoom In") {
+                    ZoomHandler.shared.zoomIn?()
+                }
+                .keyboardShortcut("+", modifiers: .command)
+                
+                Button("Zoom Out") {
+                    ZoomHandler.shared.zoomOut?()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+                
+                Button("Actual Size") {
+                    ZoomHandler.shared.zoomReset?()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
+        }
     }
 }

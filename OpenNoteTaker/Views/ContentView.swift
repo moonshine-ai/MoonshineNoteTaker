@@ -18,11 +18,13 @@ struct ContentView: View {
     @State var isUnauthorized = false
     
     @StateObject var screenRecorder = ScreenRecorder()
+    @StateObject var zoomHandler = ZoomHandler.shared
     
     var body: some View {
         ZStack {
             // Main content area - transcript view fills entire space
             TranscriptView(document: document)
+                .environmentObject(zoomHandler)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Floating recording button overlay at bottom center
