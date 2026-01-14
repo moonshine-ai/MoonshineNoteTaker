@@ -5,7 +5,7 @@ import AppKit
 struct OpenNoteTakerApp: App {
     init() {
         // Force a new document if none are restored
-        DispatchQueue.main.async {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if NSDocumentController.shared.documents.isEmpty {
                 NSDocumentController.shared.newDocument(nil)
             }
