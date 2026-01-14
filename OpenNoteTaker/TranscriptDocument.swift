@@ -29,9 +29,6 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
         startTime.addingTimeInterval(duration)
     }
     
-    /// Timestamp when this line was created/received.
-    let timestamp: Date
-
     enum Source: String, Codable, Equatable {
         case microphone
         case systemAudio
@@ -39,12 +36,11 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
 
     let source: Source
     
-    init(id: UInt64, text: String, startTime: Date, duration: TimeInterval, timestamp: Date = Date(), source: TranscriptLine.Source) {
+    init(id: UInt64, text: String, startTime: Date, duration: TimeInterval, source: TranscriptLine.Source) {
         self.id = id
         self.text = text
         self.startTime = startTime
         self.duration = duration
-        self.timestamp = timestamp
         self.source = source
     }
 }
@@ -170,6 +166,7 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
     nonisolated init() {
         self.title = "Untitled"
         self.lines = []
+        addDummyStartLine()
         self.sessionStartTime = nil
         self.sessionEndTime = nil
     }
@@ -183,6 +180,7 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
         let sortedLines = lines.sorted { $0.startTime < $1.startTime }
         self.title = "Untitled"
         self.lines = sortedLines
+        addDummyStartLine()
         self.sessionStartTime = sessionStartTime
         self.sessionEndTime = sessionEndTime
         // Initialize cache directly (safe during initialization)
@@ -194,6 +192,11 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
         snapshotLock.lock()
         cachedSnapshot = snapshot
         snapshotLock.unlock()
+    }
+
+    func addDummyStartLine() {
+        let line = TranscriptLine(id: 0, text: " ", startTime: Date(timeIntervalSince1970: 0), duration: 0, source: .systemAudio)
+        lines.insert(line, at: 0)
     }
     
     /// Start a new recording session.

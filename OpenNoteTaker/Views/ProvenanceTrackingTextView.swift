@@ -307,6 +307,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         
         textView.onTextChange = { newAttrString in
+            printAttributedString(attributedString: newAttrString)
             DispatchQueue.main.async {
                 self.attributedText = newAttrString
             }

@@ -245,7 +245,6 @@ class AudioTranscriber {
             text: actualText,
             startTime: relativeStartTime,
             duration: TimeInterval(line.duration),
-            timestamp: Date(),
             source: source
         )
         
