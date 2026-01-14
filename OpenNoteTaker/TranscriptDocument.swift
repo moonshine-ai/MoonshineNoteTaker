@@ -302,7 +302,7 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
                 idToLineMap[line.id] = newLines.count
                 newLines.append(line)
             } else {
-                var index = idToLineMap[line.id]!
+                let index = idToLineMap[line.id]!
                 newLines[index].text += line.text
             }
         }
