@@ -189,7 +189,14 @@ class ScreenRecorder: NSObject,
         if !isSetup {
             // Starting polling for available screen content.
             await monitorAvailableContent()
+            initializeTranscription()
             isSetup = true
+        }
+
+        do {
+            try captureEngine.startTranscription()
+        } catch {
+            logger.error("Failed to start transcription: \(error.localizedDescription)")
         }
         
         // Start the transcript document session
@@ -197,12 +204,7 @@ class ScreenRecorder: NSObject,
         
         // Connect the transcript document to the capture engine
         captureEngine.setTranscriptDocument(transcriptDocument)
-        
-        // If the user enables audio capture, start monitoring the audio stream.
-        if isAudioCaptureEnabled {
-            initializeTranscription()
-        }
-        
+                
         do {
             let config = streamConfiguration
             let filter = contentFilter
@@ -473,7 +475,6 @@ class ScreenRecorder: NSObject,
         
         do {
             try captureEngine.initializeTranscriber(modelPath: modelPath)
-            try captureEngine.startTranscription()
             logger.info("Transcription initialized and started with model path: \(modelPath)")
             print("[TRANSCRIPT] Initialized Moonshine Voice transcription")
         } catch {
