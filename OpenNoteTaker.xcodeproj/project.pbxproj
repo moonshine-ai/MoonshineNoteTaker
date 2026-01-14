@@ -13,6 +13,7 @@
 		59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5522F108578002E3525 /* TranscriptDocument.swift */; };
 		59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5542F108778002E3525 /* TranscriptView.swift */; };
 		59AEB55A2F11C715002E3525 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 59AEB5592F11C715002E3525 /* Moonshine */; };
+		59C08E052F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */; };
 		C44093732816EC8800FB8386 /* Synth.aif in Resources */ = {isa = PBXBuildFile; fileRef = C44093722816EC8800FB8386 /* Synth.aif */; };
 		C44093752816EC9C00FB8386 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44093742816EC9C00FB8386 /* AudioPlayer.swift */; };
 		C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C470F0802811C5CB00D29309 /* ScreenRecorder.swift */; };
@@ -32,6 +33,7 @@
 		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = OpenNoteTaker/models; sourceTree = "<group>"; };
 		59AEB5522F108578002E3525 /* TranscriptDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptDocument.swift; sourceTree = "<group>"; };
 		59AEB5542F108778002E3525 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
+		59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvenanceTrackingTextView.swift; sourceTree = "<group>"; };
 		7C6C99F1D4B6E3EBA3A7B7DF /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		8D89E0E7125AFE6B4E2E6500 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9AEEB9169F5D7FC75E6B35A2 /* SampleCode.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = SampleCode.xcconfig; path = Configuration/SampleCode.xcconfig; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 		C41D1B1D2814BD230033613F /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */,
 				59AEB5542F108778002E3525 /* TranscriptView.swift */,
 				C4B0DABC276BA4B50015082A /* CapturePreview.swift */,
 				C4EB90D328108656006A595C /* ConfigurationView.swift */,
@@ -230,6 +233,7 @@
 				C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */,
 				59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */,
 				C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */,
+				59C08E052F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift in Sources */,
 				59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */,
 				C44093752816EC9C00FB8386 /* AudioPlayer.swift in Sources */,
 				C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */,

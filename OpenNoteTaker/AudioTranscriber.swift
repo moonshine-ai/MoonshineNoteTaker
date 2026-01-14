@@ -42,12 +42,13 @@ class AudioTranscriber {
         logger.info("Initializing Moonshine Voice transcriber with model path: \(modelPath)")
         
         // Initialize transcriber with tiny model architecture (suitable for streaming)
-        var options: [TranscriberOption] = []
+        let options: [TranscriberOption] = []
         if !FileManager.default.fileExists(atPath: self.documentsPath.path) {
             try FileManager.default.createDirectory(at: self.documentsPath, withIntermediateDirectories: true, attributes: nil)
         }
-        options.append(TranscriberOption(name: "save_input_wav_path", value: self.documentsPath.path));
-        print("Saving debug audio to: '\(options[0].name): \(options[0].value)'")
+        // Uncomment to save debug audio to disk.
+        // options.append(TranscriberOption(name: "save_input_wav_path", value: self.documentsPath.path));
+        // print("Saving debug audio to: '\(options[0].name): \(options[0].value)'")
         transcriber = try Transcriber(modelPath: modelPath, modelArch: .base, options: options)
         
         // Create a stream for real-time transcription from system audio
@@ -216,7 +217,7 @@ class AudioTranscriber {
             updateDocumentForLine(lineTextChanged.line, actualText: actualText)
             
         case let lineCompleted as LineCompleted:
-            updateDocumentForLine(lineCompleted.line, actualText: actualText)
+            updateDocumentForLine(lineCompleted.line, actualText: actualText + "\n")
             
         case let error as TranscriptError:
             // Print errors

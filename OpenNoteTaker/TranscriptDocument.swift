@@ -257,13 +257,35 @@ class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Send
     func getFullText() -> String {
         lines.map { $0.text }.joined(separator: "\n")
     }
-        
-    /// Clear all transcript lines.
+    
+    /// Get all non-empty lines as a single formatted text string.
+    /// - Returns: All non-empty transcript lines joined with newlines
     @MainActor
-    func clear() {
-        lines.removeAll()
-        sessionStartTime = nil
-        sessionEndTime = nil
+    func getFilteredText() -> String {
+        lines.filter { !$0.text.isEmpty }.map { $0.text }.joined(separator: "\n")
+    }
+
+    @MainActor
+    func getViewSegments() -> [TranscriptTextSegment] {
+        var segments: [TranscriptTextSegment] = []
+        for line in lines {
+            segments.append(TranscriptTextSegment(text: line.text, metadata: TranscriptLineMetadata(lineId: line.id, userEdited: false)))
+        }
+        return segments
+    }
+    
+    @MainActor
+    func updateFromViewSegments(_ segments: [TranscriptTextSegment]) {
+        for segment in segments {
+            if let index = lines.firstIndex(where: { $0.id == segment.metadata.lineId }) {
+                var updatedLine = lines[index]
+                updatedLine.text = segment.text
+                lines[index] = updatedLine
+            } else {
+                print("Shouldn't get here: new line \(segment.text) with id \(segment.metadata.lineId)")
+            }
+        }
+        lines.sort { $0.startTime < $1.startTime }
         updateCachedSnapshot()
     }
 }
