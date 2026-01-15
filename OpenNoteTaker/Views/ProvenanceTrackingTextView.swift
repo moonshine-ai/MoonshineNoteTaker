@@ -43,111 +43,6 @@ func getMetadata(from attrs: [NSAttributedString.Key: Any]) -> TranscriptLineMet
     return decodeMetadata(data)
 }
 
-// MARK: - NSTextView Subclass
-
-class ProvenanceTrackingTextView: NSTextView {
-    
-    var onTextChange: ((NSAttributedString) -> Void)?
-    
-    // Track the range being modified and its original metadata
-    private var pendingEditRange: NSRange?
-    private var pendingEditMetadata: TranscriptLineMetadata?
-    
-    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
-        guard super.shouldChangeText(in: affectedCharRange, replacementString: replacementString) else {
-            return false
-        }
-        
-        // Capture the metadata at the edit location BEFORE the edit happens
-        pendingEditRange = affectedCharRange
-        pendingEditMetadata = metadataAtOrNear(affectedCharRange)
-        
-        return true
-    }
-    
-    /// Get metadata at the given range, or from adjacent text if the range is empty (cursor position)
-    private func metadataAtOrNear(_ range: NSRange) -> TranscriptLineMetadata? {
-        guard let textStorage = textStorage, textStorage.length > 0 else { return nil }
-        
-        // If we have a selection with content, use its start
-        if range.length > 0 {
-            let attrs = textStorage.attributes(at: range.location, effectiveRange: nil)
-            return getMetadata(from: attrs)
-        }
-        
-        // For insertion point (zero-length range), check character before cursor first,
-        // then character after if at the start
-        if range.location > 0 {
-            let attrs = textStorage.attributes(at: range.location - 1, effectiveRange: nil)
-            if let meta = getMetadata(from: attrs) {
-                return meta
-            }
-        }
-        
-        if range.location < textStorage.length {
-            let attrs = textStorage.attributes(at: range.location, effectiveRange: nil)
-            if let meta = getMetadata(from: attrs) {
-                return meta
-            }
-        }
-        
-        return nil
-    }
-    
-    override func didChangeText() {
-        super.didChangeText()
-        
-        // Mark any newly inserted text with the captured metadata (flagged as user-edited)
-        if let metadata = pendingEditMetadata {
-            markRecentInsertionAsUserEdited(with: metadata)
-        }
-        
-        pendingEditRange = nil
-        pendingEditMetadata = nil
-        
-        onTextChange?(attributedString())
-    }
-    
-    private func markRecentInsertionAsUserEdited(with sourceMetadata: TranscriptLineMetadata) {
-        guard let textStorage = textStorage else { return }
-        
-        // Walk through and find any ranges that inherited metadata but should be marked as edited
-        // This handles the case where the text system copied attributes during insertion
-        
-        let fullRange = NSRange(location: 0, length: textStorage.length)
-        
-        // Simpler approach: mark everything with the source metadata's times as user-edited
-        // if it wasn't already. This works because newly inserted text inherits attributes.
-        ensureUserEditedFlag(in: fullRange, for: sourceMetadata)
-    }
-    
-    private func ensureUserEditedFlag(in range: NSRange, for sourceMetadata: TranscriptLineMetadata) {
-        guard let textStorage = textStorage else { return }
-        
-        var rangesToUpdate: [(NSRange, TranscriptLineMetadata)] = []
-        
-        textStorage.enumerateAttribute(.transcriptLineMetadata, in: range, options: []) { value, attrRange, _ in
-            guard let data = value as? Data, var meta = decodeMetadata(data) else { return }
-            
-            // If this has the same time range as our source but isn't marked edited, mark it
-            if meta.lineId == sourceMetadata.lineId &&
-               !meta.userEdited {
-                meta.userEdited = true
-                rangesToUpdate.append((attrRange, meta))
-            }
-        }
-        
-        // Apply updates outside of enumeration
-        for (attrRange, updatedMeta) in rangesToUpdate {
-            if let encoded = encodeMetadata(updatedMeta) {
-                textStorage.addAttribute(.transcriptLineMetadata, value: encoded, range: attrRange)
-            }
-        }
-    }
-}
-
-// More robust approach: use a custom text storage
-
 class ProvenanceTrackingTextStorage: NSTextStorage {
     private let backingStore = NSMutableAttributedString()
     private var isEditing = false
@@ -160,8 +55,6 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
     
     override func attributes(at location: Int, effectiveRange range: NSRangePointer?) -> [NSAttributedString.Key: Any] {
         let attrs = backingStore.attributes(at: location, effectiveRange: range)
-        // Only log occasionally to avoid spam - log when we're checking a recently edited location
-        // This is called very frequently, so we'll be selective
         return attrs
     }
     
@@ -263,11 +156,13 @@ class ProvenanceTextView: NSTextView {
         
         let textContainer = NSTextContainer(containerSize: NSSize(width: frame.width, height: .greatestFiniteMagnitude))
         textContainer.widthTracksTextView = true
-        textContainer.heightTracksTextView = true
+        textContainer.heightTracksTextView = false
         layoutManager.addTextContainer(textContainer)
-        
+
         self.init(frame: frame, textContainer: textContainer)
-        
+
+        self.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
         // Set up to expand vertically
         self.isVerticallyResizable = true
         self.isHorizontallyResizable = false
@@ -317,12 +212,12 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
+        scrollView.autoresizingMask = [.width, .height]
         textView.autoresizingMask = [.width]
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         
         textView.onTextChange = { newAttrString in
-            printAttributedString(attributedString: newAttrString)
             DispatchQueue.main.async {
                 self.attributedText = newAttrString
             }
