@@ -179,6 +179,90 @@ class ProvenanceTextView: NSTextView {
     }
 }
 
+class AutoScrollView: NSScrollView {
+    
+    private var wasAtBottom = true
+    private var observerSetup = false
+    
+    override func awakeFromNib() {
+        super.awakeFromNib()
+    }
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+    
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if !observerSetup {
+            setupObserver()
+            observerSetup = true
+        }
+    }
+    
+    @MainActor
+    private func setupObserver() {
+        // Observe bounds changes on the content view (tracks scroll position)
+        contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(contentViewBoundsDidChange),
+            name: NSView.boundsDidChangeNotification,
+            object: contentView
+        )
+    }
+    
+    override var documentView: NSView? {
+        didSet {
+            guard let docView = documentView else { return }
+            
+            // Observe frame changes on the document view (tracks content size)
+            docView.postsFrameChangedNotifications = true
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(documentViewFrameDidChange),
+                name: NSView.frameDidChangeNotification,
+                object: docView
+            )
+        }
+    }
+    
+    private var isAtBottom: Bool {
+        guard let docView = documentView else { return true }
+        let visibleHeight = contentView.bounds.height
+        let contentHeight = docView.frame.height
+        let scrollY = contentView.bounds.origin.y
+        
+        // Allow a small tolerance (e.g., 1 point)
+        return scrollY + visibleHeight >= contentHeight - 1
+    }
+    
+    @objc private func contentViewBoundsDidChange(_ notification: Notification) {
+        wasAtBottom = isAtBottom
+    }
+    
+    @objc private func documentViewFrameDidChange(_ notification: Notification) {
+        if wasAtBottom {
+            scrollToBottom()
+        }
+    }
+    
+    func scrollToBottom() {
+        guard let docView = documentView else { return }
+        let maxY = max(0, docView.frame.height - contentView.bounds.height)
+        contentView.scroll(to: NSPoint(x: 0, y: maxY))
+        reflectScrolledClipView(contentView)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+}
+
 // MARK: - SwiftUI Wrapper
 
 struct ProvenanceTrackingTextEditor: NSViewRepresentable {
@@ -186,7 +270,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     var fontSize: CGFloat
     
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
+        let scrollView = AutoScrollView()
         
         // Create custom text storage
         let textStorage = ProvenanceTrackingTextStorage()
