@@ -19,12 +19,14 @@ class ZoomHandler: ObservableObject {
     private init() {}
 }
 
+let defaultFontSize: Double = 13.0
+
 /// A view that displays transcript text in an editable TextEditor.
 struct TranscriptView: View {
     @ObservedObject var document: TranscriptDocument
     @State private var attributedText: NSAttributedString = NSAttributedString()
     @State private var isUpdatingFromDocument = false
-    @AppStorage("textViewFontSize") private var fontSize: Double = 13.0
+    @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
     @EnvironmentObject var zoomHandler: ZoomHandler
     
     var body: some View {
@@ -128,7 +130,7 @@ struct TranscriptView: View {
     }
     
     func zoomReset() {
-        fontSize = 13.0
+        fontSize = defaultFontSize
     }
 }
 
