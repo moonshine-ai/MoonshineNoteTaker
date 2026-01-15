@@ -85,7 +85,7 @@ struct ContentView: View {
                 }
             }
         }
-        .onChange(of: undoManager) { newValue in
+        .onChange(of: undoManager) { oldValue, newValue in
             // Update the document's undo manager if it changes
             document.undoManager = newValue
         }
