@@ -149,6 +149,7 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
 
 class ProvenanceTextView: NSTextView {
     var onTextChange: ((NSAttributedString) -> Void)?
+    private let bottomPadding: CGFloat = 50
     
     convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
         let layoutManager = NSLayoutManager()
@@ -171,11 +172,35 @@ class ProvenanceTextView: NSTextView {
     
     override func didChangeText() {
         super.didChangeText()
+        
+        // Adjust frame to include bottom padding
+        adjustFrameForBottomPadding()
+        
         // Create a copy so SwiftUI sees it as a new object
         let attrString = attributedString()
                 
         let copy = NSMutableAttributedString(attributedString: attrString)
         onTextChange?(copy)
+    }
+    
+    override func layout() {
+        super.layout()
+        adjustFrameForBottomPadding()
+    }
+    
+    private func adjustFrameForBottomPadding() {
+        guard let textContainer = self.textContainer,
+              let layoutManager = textContainer.layoutManager else { return }
+        
+        // Calculate the actual content height
+        let usedRect = layoutManager.usedRect(for: textContainer)
+        let contentHeight = usedRect.height
+        
+        // Set frame height to content height + bottom padding
+        let newHeight = contentHeight + bottomPadding
+        if abs(frame.height - newHeight) > 0.1 {
+            setFrameSize(NSSize(width: frame.width, height: newHeight))
+        }
     }
 }
 
@@ -297,6 +322,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.autoresizingMask = [.width, .height]
+
         textView.autoresizingMask = [.width]
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
