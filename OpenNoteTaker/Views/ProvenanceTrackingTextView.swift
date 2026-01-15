@@ -185,7 +185,9 @@ class ProvenanceTextView: NSTextView {
     
     override func layout() {
         super.layout()
-        adjustFrameForBottomPadding()
+        DispatchQueue.main.async { [weak self] in
+            self?.adjustFrameForBottomPadding()
+        }
     }
     
     private func adjustFrameForBottomPadding() {
