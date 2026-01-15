@@ -46,7 +46,7 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
 }
 
 /// A document model that holds transcript lines in time order.
-class TranscriptDocument: @preconcurrency ReferenceFileDocument, @unchecked Sendable, ObservableObject {
+class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, ObservableObject {
     /// The document title (shown in the titlebar).
     @Published var title: String = "Untitled"
     
