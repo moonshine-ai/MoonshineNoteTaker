@@ -45,11 +45,35 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
     }
 }
 
-struct RecordingBlock: Codable, Equatable {
+struct RecordingBlock: Equatable {
     let startTime: Date
     var endTime: Date
-    var micAudio: [Float]
-    var systemAudio: [Float]
+    var micAudio: [Float]      // In-memory only, not Codable
+    var systemAudio: [Float]   // In-memory only, not Codable
+    
+    // File references for bundle format (used during save/load)
+    var micAudioFile: String?
+    var systemAudioFile: String?
+    
+    // Codable version for JSON (excludes audio arrays)
+    struct CodableBlock: Codable {
+        let startTime: Date
+        let endTime: Date
+        let micAudioFile: String
+        let systemAudioFile: String
+    }
+    
+    var codable: CodableBlock? {
+        guard let micFile = micAudioFile, let systemFile = systemAudioFile else {
+            return nil
+        }
+        return CodableBlock(
+            startTime: startTime,
+            endTime: endTime,
+            micAudioFile: micFile,
+            systemAudioFile: systemFile
+        )
+    }
 }
 
 /// A document model that holds transcript lines in time order.
@@ -96,21 +120,12 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         let lines: [TranscriptLine]
         let sessionStartTime: Date?
         let sessionEndTime: Date?
-        
-        if let data = configuration.file.regularFileContents {
-            if let document = Self.decode(from: data) {
-                self.title = configuration.file.filename ?? "Untitled"
-                lines = document.lines
-                sessionStartTime = document.sessionStartTime
-                sessionEndTime = document.sessionEndTime
-                recordingBlocks = document.recordingBlocks
-                self.lines = lines
-                self.sessionStartTime = sessionStartTime
-                self.sessionEndTime = sessionEndTime
-            } else {
-                throw CocoaError(.fileReadCorruptFile)
-            }
-        } else {
+        var recordingBlocks: [RecordingBlock] = []
+                
+        // Load bundle format (directory)
+        guard let fileWrapper = configuration.file.fileWrappers,
+              let jsonWrapper = fileWrapper["transcript.json"],
+              let jsonData = jsonWrapper.regularFileContents else {
             // New empty document
             self.title = "Untitled"
             lines = []
@@ -119,14 +134,64 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
             self.lines = lines
             self.sessionStartTime = sessionStartTime
             self.sessionEndTime = sessionEndTime
+            self.recordingBlocks = recordingBlocks
+            
+            // Initialize the cached snapshot
+            let snapshot = DocumentData(
+                lines: lines,
+                sessionStartTime: sessionStartTime,
+                sessionEndTime: sessionEndTime,
+                recordingBlocks: []
+            )
+            snapshotLock.lock()
+            cachedSnapshot = snapshot
+            snapshotLock.unlock()
+            return
         }
         
-        // Initialize the cached snapshot directly using captured values
+        guard let documentData = try? JSONDecoder().decode(DocumentData.self, from: jsonData) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        
+        // Load audio from WAV files
+        for codableBlock in documentData.recordingBlocks {
+            var block = RecordingBlock(
+                startTime: codableBlock.startTime,
+                endTime: codableBlock.endTime,
+                micAudio: [],
+                systemAudio: []
+            )
+            
+            // Load mic audio
+            if let micWrapper = fileWrapper[codableBlock.micAudioFile],
+               let micData = micWrapper.regularFileContents {
+                block.micAudio = try Self.loadWavData(micData)
+            }
+            
+            // Load system audio
+            if let systemWrapper = fileWrapper[codableBlock.systemAudioFile],
+               let systemData = systemWrapper.regularFileContents {
+                block.systemAudio = try Self.loadWavData(systemData)
+            }
+            
+            recordingBlocks.append(block)
+        }
+        
+        self.title = configuration.file.filename ?? "Untitled"
+        lines = documentData.lines
+        sessionStartTime = documentData.sessionStartTime
+        sessionEndTime = documentData.sessionEndTime
+        self.lines = lines
+        self.sessionStartTime = sessionStartTime
+        self.sessionEndTime = sessionEndTime
+        self.recordingBlocks = recordingBlocks
+        
+        // Initialize the cached snapshot
         let snapshot = DocumentData(
             lines: lines,
             sessionStartTime: sessionStartTime,
             sessionEndTime: sessionEndTime,
-            recordingBlocks: recordingBlocks
+            recordingBlocks: recordingBlocks.compactMap { $0.codable }
         )
         snapshotLock.lock()
         cachedSnapshot = snapshot
@@ -150,7 +215,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     /// Update the cached snapshot. Call this from the main actor whenever the document changes.
     @MainActor
     private func updateCachedSnapshot() {
-        let snapshot = DocumentData(from: self)
+        var snapshot = DocumentData(from: self)
+        snapshot.recordingBlocksWithAudio = self.recordingBlocks
         snapshotLock.lock()
         cachedSnapshot = snapshot
         snapshotLock.unlock()
@@ -160,8 +226,148 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         // This method is called from a background thread during document saving.
         // It only uses the snapshot parameter (which is already a value type),
         // so it doesn't need main actor isolation.
-        let data = try JSONEncoder().encode(snapshot)
-        return FileWrapper(regularFileWithContents: data)
+        var fileWrappers: [String: FileWrapper] = [:]
+        
+        // Get audio blocks from snapshot (non-Codable property)
+        guard let audioBlocks = snapshot.recordingBlocksWithAudio else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        
+        // Create WAV files for each block
+        var codableBlocks: [RecordingBlock.CodableBlock] = []
+        
+        for (index, block) in audioBlocks.enumerated() {
+            let micFileName = "block_\(index)_mic.wav"
+            let systemFileName = "block_\(index)_system.wav"
+            
+            // Create WAV file data (16-bit signed integer, 48KHz, mono)
+            let micData = try Self.createWavData(block.micAudio, sampleRate: 48000)
+            let systemData = try Self.createWavData(block.systemAudio, sampleRate: 48000)
+            
+            fileWrappers[micFileName] = FileWrapper(regularFileWithContents: micData)
+            fileWrappers[systemFileName] = FileWrapper(regularFileWithContents: systemData)
+            
+            codableBlocks.append(RecordingBlock.CodableBlock(
+                startTime: block.startTime,
+                endTime: block.endTime,
+                micAudioFile: micFileName,
+                systemAudioFile: systemFileName
+            ))
+        }
+        
+        // Create transcript.json with metadata
+        let transcriptData = DocumentData(
+            lines: snapshot.lines,
+            sessionStartTime: snapshot.sessionStartTime,
+            sessionEndTime: snapshot.sessionEndTime,
+            recordingBlocks: codableBlocks
+        )
+        
+        let jsonData = try JSONEncoder().encode(transcriptData)
+        fileWrappers["transcript.json"] = FileWrapper(regularFileWithContents: jsonData)
+        
+        // Create directory wrapper
+        return FileWrapper(directoryWithFileWrappers: fileWrappers)
+    }
+    
+    /// Helper to create WAV file data (16KHz, 16-bit signed integer, mono)
+    nonisolated private static func createWavData(_ samples: [Float], sampleRate: Int) throws -> Data {
+        let numChannels: UInt16 = 1
+        let bitsPerSample: UInt16 = 16
+        let bytesPerSample = bitsPerSample / 8
+        let numSamples = samples.count
+        
+        let dataChunkSize = UInt32(numSamples * Int(numChannels) * Int(bytesPerSample))
+        let fmtChunkSize: UInt32 = 16
+        let fileSize = 4 + 4 + 4 + 4 + (4 + 4 + fmtChunkSize) + (4 + 4 + dataChunkSize)
+        
+        var data = Data()
+        
+        // RIFF header
+        data.append("RIFF".data(using: .ascii)!)
+        data.append(contentsOf: withUnsafeBytes(of: UInt32(fileSize - 8).littleEndian) { Data($0) })
+        data.append("WAVE".data(using: .ascii)!)
+        
+        // fmt chunk
+        data.append("fmt ".data(using: .ascii)!)
+        data.append(contentsOf: withUnsafeBytes(of: fmtChunkSize.littleEndian) { Data($0) })
+        let audioFormat: UInt16 = 1 // PCM (uncompressed)
+        data.append(contentsOf: withUnsafeBytes(of: audioFormat.littleEndian) { Data($0) })
+        data.append(contentsOf: withUnsafeBytes(of: numChannels.littleEndian) { Data($0) })
+        data.append(contentsOf: withUnsafeBytes(of: UInt32(sampleRate).littleEndian) { Data($0) })
+        let byteRate = UInt32(sampleRate) * UInt32(numChannels) * UInt32(bytesPerSample)
+        data.append(contentsOf: withUnsafeBytes(of: byteRate.littleEndian) { Data($0) })
+        let blockAlign = numChannels * bytesPerSample
+        data.append(contentsOf: withUnsafeBytes(of: blockAlign.littleEndian) { Data($0) })
+        data.append(contentsOf: withUnsafeBytes(of: bitsPerSample.littleEndian) { Data($0) })
+        
+        // data chunk
+        data.append("data".data(using: .ascii)!)
+        data.append(contentsOf: withUnsafeBytes(of: dataChunkSize.littleEndian) { Data($0) })
+        
+        // Convert Float samples to 16-bit signed integers
+        // Clamp to [-1.0, 1.0] range and scale to Int16 range [-32768, 32767]
+        for sample in samples {
+            let clamped = max(-1.0, min(1.0, sample))
+            let int16Value = Int16(clamped * 32767.0)
+            data.append(contentsOf: withUnsafeBytes(of: int16Value.littleEndian) { Data($0) })
+        }
+        
+        return data
+    }
+    
+    /// Load audio samples from WAV file data
+    /// Assumes 16-bit signed integer, mono, little-endian format
+    nonisolated private static func loadWavData(_ data: Data) throws -> [Float] {
+        guard data.count >= 44 else {  // Minimum WAV header size
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        
+        // Parse RIFF header
+        guard data.count >= 12,
+              String(data: data[0..<4], encoding: .ascii) == "RIFF",
+              String(data: data[8..<12], encoding: .ascii) == "WAVE" else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        
+        // Find data chunk
+        var dataStart = 12
+        var foundDataChunk = false
+        
+        while dataStart + 8 <= data.count {
+            let chunkId = String(data: data[dataStart..<dataStart+4], encoding: .ascii) ?? ""
+            let chunkSize = UInt32(littleEndian: data.withUnsafeBytes { $0.load(fromByteOffset: dataStart + 4, as: UInt32.self) })
+            
+            if chunkId == "data" {
+                dataStart += 8  // Skip chunk ID and size
+                foundDataChunk = true
+                break
+            }
+            
+            dataStart += 8 + Int(chunkSize)
+            if chunkSize % 2 == 1 {
+                dataStart += 1  // Pad byte
+            }
+        }
+        
+        guard foundDataChunk else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        
+        // Extract 16-bit signed integer samples and convert to Float
+        let sampleCount = (data.count - dataStart) / 2  // 2 bytes per sample
+        var samples: [Float] = []
+        samples.reserveCapacity(sampleCount)
+        
+        for i in 0..<sampleCount {
+            let offset = dataStart + (i * 2)
+            guard offset + 2 <= data.count else { break }
+            let int16Value = Int16(littleEndian: data.withUnsafeBytes { $0.load(fromByteOffset: offset, as: Int16.self) })
+            // Convert Int16 to Float: divide by 32768.0 to get range [-1.0, 1.0]
+            samples.append(Float(int16Value) / 32768.0)
+        }
+        
+        return samples
     }
     
     /// Total duration of the recording in seconds.
@@ -194,12 +400,13 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         self.sessionStartTime = sessionStartTime
         self.sessionEndTime = sessionEndTime
         // Initialize cache directly (safe during initialization)
-        let snapshot = DocumentData(
+        var snapshot = DocumentData(
             lines: sortedLines,
             sessionStartTime: sessionStartTime,
             sessionEndTime: sessionEndTime,
-            recordingBlocks: recordingBlocks
+            recordingBlocks: recordingBlocks.compactMap { $0.codable }
         )
+        snapshot.recordingBlocksWithAudio = recordingBlocks
         snapshotLock.lock()
         cachedSnapshot = snapshot
         snapshotLock.unlock()
@@ -329,48 +536,67 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
 
 extension TranscriptDocument {
     /// Codable representation of the document for save/load.
-    struct DocumentData: Codable {
+    struct DocumentData {
         let lines: [TranscriptLine]
-        let recordingBlocks: [RecordingBlock]
+        let recordingBlocks: [RecordingBlock.CodableBlock]  // Only metadata, not audio
         let sessionStartTime: Date?
         let sessionEndTime: Date?
         let version: Int // For future compatibility
         
+        // Non-Codable: audio data for saving (excluded from JSON)
+        var recordingBlocksWithAudio: [RecordingBlock]? = nil
+        
         @MainActor
         init(from document: TranscriptDocument) {
             self.lines = document.lines
-            self.recordingBlocks = document.recordingBlocks
+            self.recordingBlocks = []  // Will be populated during save
             self.sessionStartTime = document.sessionStartTime
             self.sessionEndTime = document.sessionEndTime
-            self.version = 1
+            self.version = 2
+            self.recordingBlocksWithAudio = document.recordingBlocks
         }
         
         // Nonisolated initializer for use from background threads
-        nonisolated init(lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?, recordingBlocks: [RecordingBlock]) {
+        nonisolated init(lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?, recordingBlocks: [RecordingBlock.CodableBlock]) {
             self.lines = lines
             self.recordingBlocks = recordingBlocks
             self.sessionStartTime = sessionStartTime
             self.sessionEndTime = sessionEndTime
-            self.version = 1
+            self.version = 2
+            self.recordingBlocksWithAudio = nil
         }
     }
+}
+
+// MARK: - Custom Codable Implementation
+
+extension TranscriptDocument.DocumentData: Codable {
+    enum CodingKeys: String, CodingKey {
+        case lines
+        case recordingBlocks
+        case sessionStartTime
+        case sessionEndTime
+        case version
+    }
     
-    /// Decode the document from data.
-    /// - Parameter data: The encoded data
-    /// - Returns: A new TranscriptDocument, or nil if decoding fails
-    nonisolated static func decode(from data: Data) -> TranscriptDocument? {
-        guard let documentData = try? JSONDecoder().decode(DocumentData.self, from: data) else {
-            return nil
-        }
-        
-        // Create document with all data in the initializer
-        let recordingBlocks = documentData.recordingBlocks
-        return TranscriptDocument(
-            lines: documentData.lines,
-            sessionStartTime: documentData.sessionStartTime,
-            sessionEndTime: documentData.sessionEndTime,
-            recordingBlocks: recordingBlocks
-        )
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(lines, forKey: .lines)
+        try container.encode(recordingBlocks, forKey: .recordingBlocks)
+        try container.encode(sessionStartTime, forKey: .sessionStartTime)
+        try container.encode(sessionEndTime, forKey: .sessionEndTime)
+        try container.encode(version, forKey: .version)
+        // recordingBlocksWithAudio is intentionally excluded
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        lines = try container.decode([TranscriptLine].self, forKey: .lines)
+        recordingBlocks = try container.decode([RecordingBlock.CodableBlock].self, forKey: .recordingBlocks)
+        sessionStartTime = try container.decodeIfPresent(Date.self, forKey: .sessionStartTime)
+        sessionEndTime = try container.decodeIfPresent(Date.self, forKey: .sessionEndTime)
+        version = try container.decode(Int.self, forKey: .version)
+        recordingBlocksWithAudio = nil  // Not loaded from JSON
     }
 }
 

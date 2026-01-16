@@ -42,8 +42,7 @@
 			</dict>
 			<key>UTTypeConformsTo</key>
 			<array>
-				<string>public.data</string>
-				<string>public.text</string>
+				<string>com.apple.bundle</string>
 			</array>
 		</dict>
 	</array>
@@ -60,6 +59,8 @@
 			</array>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
+			<key>LSTypeIsPackage</key>
+			<true/>
 		</dict>
 	</array>
 </dict>
