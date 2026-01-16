@@ -16,6 +16,8 @@ struct ContentView: View {
     @Environment(\.undoManager) private var undoManager
     
     @State var isUnauthorized = false
+    @State private var audioPlayerCancellable: AnyCancellable?
+    @State private var playbackReachedEnd = false
     
     @StateObject var screenRecorder = ScreenRecorder()
     @StateObject var zoomHandler = ZoomHandler.shared
@@ -63,11 +65,11 @@ struct ContentView: View {
                             }
                         }
                     }) {
-                        Image(systemName: screenRecorder.isRunning ? "pause.circle.fill" : "play.circle.fill")
+                        Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                             .font(.title2)
                             .foregroundColor(.white)
                             .padding(10)
-                            .background(screenRecorder.isRunning ? Color.red : Color.blue)
+                            .background(Color.blue)
                             .cornerRadius(8)
                             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
@@ -106,6 +108,22 @@ struct ContentView: View {
                 }
             }
             audioPlayer.transcriptDocument = document
+            
+            // Subscribe to audio player events
+            // These events are posted from the audio thread and handled on the main thread
+            audioPlayerCancellable = audioPlayer.events
+                .receive(on: DispatchQueue.main)
+                .sink { event in
+                    switch event {
+                    case .playbackReachedEnd:
+                        // Automatically stop playback when it reaches the end
+                        audioPlayer.stop()
+                        print("Playback reached end")
+                    case .playbackError(let error):
+                        // Handle playback errors
+                        print("Playback error: \(error.localizedDescription)")
+                    }
+                }
         }
         .onChange(of: undoManager) { oldValue, newValue in
             // Update the document's undo manager if it changes

@@ -1,10 +1,30 @@
 import Foundation
 import AVFoundation
+import Combine
+
+/// Events that can be posted from the audio thread to the UI
+enum AudioPlayerEvent {
+    case playbackReachedEnd
+    case playbackError(Error)
+}
 
 class AudioPlayer: ObservableObject {
     let engine: AVAudioEngine
     var transcriptDocument: TranscriptDocument
-    var isPlaying: Bool = false
+    @Published var isPlaying: Bool = false
+    
+    /// Subject for posting events from the audio thread to the main thread
+    /// Use this to communicate events that occur in the render callback
+    private let eventSubject = PassthroughSubject<AudioPlayerEvent, Never>()
+    
+    /// Publisher for observing events from the UI
+    var events: AnyPublisher<AudioPlayerEvent, Never> {
+        eventSubject.eraseToAnyPublisher()
+    }
+    
+    /// Flag to track if we've already sent the end event (to avoid duplicates)
+    /// This is accessed from both the audio thread and main thread, so we use nonisolated(unsafe)
+    private nonisolated(unsafe) var hasSentEndEvent: Bool = false
 
     init() {
         self.transcriptDocument = TranscriptDocument()
@@ -13,7 +33,9 @@ class AudioPlayer: ObservableObject {
 
         let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
 
-        let sourceNode = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
+        let sourceNode = AVAudioSourceNode(format: format) { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
+            guard let self = self else { return noErr }
+            
             let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
             let buffer = ablPointer[0].mData!.assumingMemoryBound(to: Float.self)
             
@@ -21,6 +43,17 @@ class AudioPlayer: ObservableObject {
             for i in 0..<audio.count {
                 buffer[i] = audio[i]
             }
+            
+            // Post event to main thread if playback reached end (only once)
+            // This is safe to call from the audio thread - DispatchQueue will handle the thread switch
+            if reachedEnd && !self.hasSentEndEvent {
+                self.hasSentEndEvent = true
+                let eventSubject = self.eventSubject
+                DispatchQueue.main.async { [weak eventSubject] in
+                    eventSubject?.send(.playbackReachedEnd)
+                }
+            }
+            
             return noErr
         }
 
@@ -30,6 +63,7 @@ class AudioPlayer: ObservableObject {
 
     func play() throws {
         isPlaying = true
+        hasSentEndEvent = false  // Reset flag when starting playback
         transcriptDocument.resetPlaybackOffset()
         try engine.start()
     }
