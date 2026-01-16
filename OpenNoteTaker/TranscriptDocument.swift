@@ -91,6 +91,9 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     @Published var sessionEndTime: Date?
     
     private var recordingBlocks: [RecordingBlock] = []
+    private nonisolated let recordingBlocksLock = NSLock()
+    private var playbackOffset: Int = 0
+    private var reachedEnd: Bool = false
 
     /// Thread-safe cached snapshot for background thread access during saves
     private nonisolated(unsafe) var cachedSnapshot: DocumentData?
@@ -515,20 +518,94 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     }
 
     func startNewRecordingBlock() {
+        recordingBlocksLock.lock()
+        defer { recordingBlocksLock.unlock() }
         recordingBlocks.append(RecordingBlock(startTime: Date(), endTime: Date(), micAudio: [], systemAudio: []))
         print("startNewRecordingBlock")
     }
 
     func endCurrentRecordingBlock() {
+        recordingBlocksLock.lock()
+        defer { recordingBlocksLock.unlock() }
         recordingBlocks[recordingBlocks.count - 1].endTime = Date()
     }
 
     func addMicAudio(_ audio: [Float]) {
+        recordingBlocksLock.lock()
+        defer { recordingBlocksLock.unlock() }
         recordingBlocks[recordingBlocks.count - 1].micAudio.append(contentsOf: audio)
     }
 
     func addSystemAudio(_ audio: [Float]) {
+        recordingBlocksLock.lock()
+        defer { recordingBlocksLock.unlock() }
         recordingBlocks[recordingBlocks.count - 1].systemAudio.append(contentsOf: audio)
+    }
+
+    func getBlockIndexAndOffset(index: Int) -> (Int, Int) {
+        var blockStartIndex = 0
+        for (blockIndex, block) in recordingBlocks.enumerated() {
+            if index < blockStartIndex + block.micAudio.count {
+                return (blockIndex, index - blockStartIndex)
+            }
+            blockStartIndex += block.micAudio.count
+        }
+        let lastBlock = recordingBlocks[recordingBlocks.count - 1]
+        return (recordingBlocks.count - 1, lastBlock.micAudio.count)
+    }
+
+    func getNextAudioData(length: UInt32) -> ([Float], Bool) {
+        recordingBlocksLock.lock()
+        defer { recordingBlocksLock.unlock() }
+
+        if self.reachedEnd {
+            return ([0.0], true)
+        }
+
+        let (startBlockIndex, startOffset) = getBlockIndexAndOffset(index: playbackOffset)
+        let (endBlockIndex, endOffset) = getBlockIndexAndOffset(index: playbackOffset + Int(length))
+        var micAudio: [Float] = []
+        var systemAudio: [Float] = []
+        var currentOffset = startOffset
+        for blockIndex in startBlockIndex...endBlockIndex {
+            let currentStartOffset: Int
+            if blockIndex == startBlockIndex {
+                currentStartOffset = startOffset
+            } else {
+                currentStartOffset = 0
+            }
+            let currentEndOffset: Int
+            if blockIndex == endBlockIndex {
+                currentEndOffset = endOffset
+            } else {
+                currentEndOffset = recordingBlocks[blockIndex].micAudio.count
+            }
+            micAudio.append(contentsOf: recordingBlocks[blockIndex].micAudio[currentStartOffset..<currentEndOffset])
+            systemAudio.append(contentsOf: recordingBlocks[blockIndex].systemAudio[currentStartOffset..<currentEndOffset])
+            currentOffset += Int(length)
+        }
+        self.reachedEnd = (endBlockIndex == recordingBlocks.count - 1 && 
+            endOffset >= recordingBlocks[endBlockIndex].micAudio.count)
+        if micAudio.count < length {
+            micAudio.append(contentsOf: Array(repeating: 0.0, count: Int(length) - micAudio.count))
+        } else if micAudio.count > length {
+            micAudio = Array(micAudio.prefix(Int(length)))
+        }
+        if systemAudio.count < length {
+            systemAudio.append(contentsOf: Array(repeating: 0.0, count: Int(length) - systemAudio.count))
+        } else if systemAudio.count > length {
+            systemAudio = Array(systemAudio.prefix(Int(length)))
+        }
+        if !self.reachedEnd {
+            playbackOffset += Int(length)
+        }
+        let mixedAudio = zip(micAudio, systemAudio).map { $0 + $1 }
+        return (mixedAudio, self.reachedEnd)
+    }
+
+    func resetPlaybackOffset() {
+        playbackOffset = 0
+        reachedEnd = false
     }
 }
 

@@ -1,35 +1,41 @@
-/*
-See the LICENSE.txt file for this sample’s licensing information.
-
-Abstract:
-An object that holds an AVAudioPlayer that plays an AIFF file.
-*/
-
 import Foundation
 import AVFoundation
 
 class AudioPlayer: ObservableObject {
-    
-    let audioPlayer: AVAudioPlayer
-    
-    @Published var isPlaying = false
-    
+    let engine: AVAudioEngine
+    var transcriptDocument: TranscriptDocument
+    var isPlaying: Bool = false
+
     init() {
-        guard let url = Bundle.main.url(forResource: "Synth", withExtension: "aif") else {
-            fatalError("Couldn't find Synth.aif in the app bundle.")
+        self.transcriptDocument = TranscriptDocument()
+        
+        engine = AVAudioEngine()
+
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
+
+        let sourceNode = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
+            let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            let buffer = ablPointer[0].mData!.assumingMemoryBound(to: Float.self)
+            
+            let (audio, reachedEnd) = self.transcriptDocument.getNextAudioData(length: frameCount)
+            for i in 0..<audio.count {
+                buffer[i] = audio[i]
+            }
+            return noErr
         }
-        audioPlayer = try! AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.aiff.rawValue)
-        audioPlayer.numberOfLoops = -1 // Loop indefinitely.
-        audioPlayer.prepareToPlay()
+
+        engine.attach(sourceNode)
+        engine.connect(sourceNode, to: engine.mainMixerNode, format: format)
     }
-    
-    func play() {
-        audioPlayer.play()
+
+    func play() throws {
         isPlaying = true
+        transcriptDocument.resetPlaybackOffset()
+        try engine.start()
     }
-    
+
     func stop() {
-        audioPlayer.stop()
         isPlaying = false
+        engine.stop()
     }
 }

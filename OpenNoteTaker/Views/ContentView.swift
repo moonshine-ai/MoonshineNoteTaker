@@ -19,6 +19,7 @@ struct ContentView: View {
     
     @StateObject var screenRecorder = ScreenRecorder()
     @StateObject var zoomHandler = ZoomHandler.shared
+    @StateObject var audioPlayer: AudioPlayer = AudioPlayer()
     
     var body: some View {
         ZStack {
@@ -30,30 +31,50 @@ struct ContentView: View {
             // Floating recording button overlay at bottom center
             VStack {
                 Spacer()
-                Button(action: {
-                    Task {
-                        if screenRecorder.isRunning {
-                            await screenRecorder.stop()
-                        } else {
-                            // Enable both audio sources before starting
-                            screenRecorder.isAudioCaptureEnabled = true
-                            screenRecorder.isMicCaptureEnabled = true
-                            await screenRecorder.start()
+                HStack {
+                    Button(action: {
+                        Task {
+                            if screenRecorder.isRunning {
+                                await screenRecorder.stop()
+                            } else {
+                                // Enable both audio sources before starting
+                                screenRecorder.isAudioCaptureEnabled = true
+                                screenRecorder.isMicCaptureEnabled = true
+                                await screenRecorder.start()
+                            }
                         }
+                    }) {
+                        Image(systemName: screenRecorder.isRunning ? "pause.circle.fill" : "record.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(screenRecorder.isRunning ? Color.red : Color.blue)
+                            .cornerRadius(8)
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
-                }) {
-                    Image(systemName: screenRecorder.isRunning ? "pause.circle.fill" : "record.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                        .padding(10)
-                        .background(screenRecorder.isRunning ? Color.red : Color.blue)
-                        .cornerRadius(8)
-                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 10)
+                    Button(action: {
+                        Task {
+                            if audioPlayer.isPlaying {
+                                audioPlayer.stop()
+                            } else {
+                                try audioPlayer.play()
+                            }
+                        }
+                    }) {
+                        Image(systemName: screenRecorder.isRunning ? "pause.circle.fill" : "play.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(screenRecorder.isRunning ? Color.red : Color.blue)
+                            .cornerRadius(8)
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 10)
                 }
-                .buttonStyle(.plain)
-                .padding(.bottom, 10)
-            }
-            
+            }            
             // Unauthorized overlay
             if isUnauthorized {
                 VStack {
@@ -84,16 +105,11 @@ struct ContentView: View {
                     isUnauthorized = true
                 }
             }
+            audioPlayer.transcriptDocument = document
         }
         .onChange(of: undoManager) { oldValue, newValue in
             // Update the document's undo manager if it changes
             document.undoManager = newValue
         }
-    }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView(document: TranscriptDocument())
     }
 }

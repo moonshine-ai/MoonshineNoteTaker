@@ -44,7 +44,6 @@ struct PickerSettingsView: View {
             VStack(alignment: .leading, spacing: verticalLabelSpacing) {
 
                 // Picker property: Maximum stream count.
-                HeaderView("Maximum Stream Count")
                 TextField("Maximum Stream Count", value: $maxStreamCount, format: .number)
                     .frame(maxWidth: 150)
                     .onSubmit {
@@ -52,7 +51,6 @@ struct PickerSettingsView: View {
                     }
 
                 // Picker configuration: Allowed picking modes.
-                HeaderView("Allowed Picking Modes")
                 Toggle("Single Window", isOn: bindingForPickingModes(.singleWindow))
                 Toggle("Multiple Windows", isOn: bindingForPickingModes(.multipleWindows))
                 Toggle("Single Application", isOn: bindingForPickingModes(.singleApplication))
@@ -60,7 +58,6 @@ struct PickerSettingsView: View {
                 Toggle("Single Display", isOn: bindingForPickingModes(.singleDisplay))
 
                 // Picker configuration: Excluded Window IDs.
-                HeaderView("Excluded Window IDs")
                 Text("Select window below to exclude it:")
                     .font(.subheadline)
                     .foregroundStyle(.primary)
@@ -88,7 +85,6 @@ struct PickerSettingsView: View {
                 }
 
                 // Picker configuration: Excluded Bundle IDs.
-                HeaderView("Excluded Bundle IDs")
                 HStack {
                     TextField("\(Bundle.main.bundleIdentifier!)", text: $bundleIDToExclude)
                         .frame(maxWidth: 300)
