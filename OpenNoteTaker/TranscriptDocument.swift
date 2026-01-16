@@ -45,6 +45,13 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
     }
 }
 
+struct RecordingBlock: Codable, Equatable {
+    let startTime: Date
+    var endTime: Date
+    var micAudio: [Float]
+    var systemAudio: [Float]
+}
+
 /// A document model that holds transcript lines in time order.
 class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, ObservableObject {
     /// The document title (shown in the titlebar).
@@ -59,6 +66,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     /// The end time of the recording session.
     @Published var sessionEndTime: Date?
     
+    private var recordingBlocks: [RecordingBlock] = []
+
     /// Thread-safe cached snapshot for background thread access during saves
     private nonisolated(unsafe) var cachedSnapshot: DocumentData?
     
@@ -94,6 +103,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
                 lines = document.lines
                 sessionStartTime = document.sessionStartTime
                 sessionEndTime = document.sessionEndTime
+                recordingBlocks = document.recordingBlocks
                 self.lines = lines
                 self.sessionStartTime = sessionStartTime
                 self.sessionEndTime = sessionEndTime
@@ -115,7 +125,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         let snapshot = DocumentData(
             lines: lines,
             sessionStartTime: sessionStartTime,
-            sessionEndTime: sessionEndTime
+            sessionEndTime: sessionEndTime,
+            recordingBlocks: recordingBlocks
         )
         snapshotLock.lock()
         cachedSnapshot = snapshot
@@ -176,7 +187,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     ///   - lines: Array of transcript lines (will be sorted by start time)
     ///   - sessionStartTime: Optional session start time
     ///   - sessionEndTime: Optional session end time
-    nonisolated init(lines: [TranscriptLine], sessionStartTime: Date? = nil, sessionEndTime: Date? = nil) {
+    nonisolated init(lines: [TranscriptLine], sessionStartTime: Date? = nil, sessionEndTime: Date? = nil, recordingBlocks: [RecordingBlock] = []) {
         let sortedLines = lines.sorted { $0.startTime < $1.startTime }
         self.title = "Untitled"
         self.lines = sortedLines
@@ -186,7 +197,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         let snapshot = DocumentData(
             lines: sortedLines,
             sessionStartTime: sessionStartTime,
-            sessionEndTime: sessionEndTime
+            sessionEndTime: sessionEndTime,
+            recordingBlocks: recordingBlocks
         )
         snapshotLock.lock()
         cachedSnapshot = snapshot
@@ -253,20 +265,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         updateCachedSnapshot()
     }
     
-    /// Get all lines as a single formatted text string.
-    /// - Returns: All transcript lines joined with newlines
-    @MainActor
-    func getFullText() -> String {
-        lines.map { $0.text }.joined(separator: "\n")
-    }
-    
-    /// Get all non-empty lines as a single formatted text string.
-    /// - Returns: All non-empty transcript lines joined with newlines
-    @MainActor
-    func getFilteredText() -> String {
-        lines.filter { !$0.text.isEmpty }.map { $0.text }.joined(separator: "\n")
-    }
-
     @MainActor
     func getViewSegments() -> [TranscriptTextSegment] {
         var segments: [TranscriptTextSegment] = []
@@ -308,6 +306,23 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         }
         lines = newLines
     }
+
+    func startNewRecordingBlock() {
+        recordingBlocks.append(RecordingBlock(startTime: Date(), endTime: Date(), micAudio: [], systemAudio: []))
+        print("startNewRecordingBlock")
+    }
+
+    func endCurrentRecordingBlock() {
+        recordingBlocks[recordingBlocks.count - 1].endTime = Date()
+    }
+
+    func addMicAudio(_ audio: [Float]) {
+        recordingBlocks[recordingBlocks.count - 1].micAudio.append(contentsOf: audio)
+    }
+
+    func addSystemAudio(_ audio: [Float]) {
+        recordingBlocks[recordingBlocks.count - 1].systemAudio.append(contentsOf: audio)
+    }
 }
 
 // MARK: - Codable Support for Persistence
@@ -316,6 +331,7 @@ extension TranscriptDocument {
     /// Codable representation of the document for save/load.
     struct DocumentData: Codable {
         let lines: [TranscriptLine]
+        let recordingBlocks: [RecordingBlock]
         let sessionStartTime: Date?
         let sessionEndTime: Date?
         let version: Int // For future compatibility
@@ -323,14 +339,16 @@ extension TranscriptDocument {
         @MainActor
         init(from document: TranscriptDocument) {
             self.lines = document.lines
+            self.recordingBlocks = document.recordingBlocks
             self.sessionStartTime = document.sessionStartTime
             self.sessionEndTime = document.sessionEndTime
             self.version = 1
         }
         
         // Nonisolated initializer for use from background threads
-        nonisolated init(lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?) {
+        nonisolated init(lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?, recordingBlocks: [RecordingBlock]) {
             self.lines = lines
+            self.recordingBlocks = recordingBlocks
             self.sessionStartTime = sessionStartTime
             self.sessionEndTime = sessionEndTime
             self.version = 1
@@ -346,10 +364,12 @@ extension TranscriptDocument {
         }
         
         // Create document with all data in the initializer
+        let recordingBlocks = documentData.recordingBlocks
         return TranscriptDocument(
             lines: documentData.lines,
             sessionStartTime: documentData.sessionStartTime,
-            sessionEndTime: documentData.sessionEndTime
+            sessionEndTime: documentData.sessionEndTime,
+            recordingBlocks: recordingBlocks
         )
     }
 }

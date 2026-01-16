@@ -88,6 +88,7 @@ class AudioTranscriber {
         }
         
         transcriptionStartTime = Date()
+        transcriptDocument?.startNewRecordingBlock()
         
         try systemAudioStream.start()
         try micStream.start()
@@ -110,6 +111,8 @@ class AudioTranscriber {
         isTranscribing = false
         transcriptionStartTime = nil
         logger.info("Transcription stopped")
+
+        transcriptDocument?.endCurrentRecordingBlock()
     }
     
     /// Add audio data to the transcription stream.
@@ -117,6 +120,15 @@ class AudioTranscriber {
     func addAudio(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) throws {
         guard let systemAudioStream = systemAudioStream, isTranscribing else { return }
         
+        let destinationStreamOptional: MoonshineVoice.Stream? = (audioType == SCStreamOutputType.microphone ? micStream : systemAudioStream)
+        guard let destinationStream = destinationStreamOptional else {
+            logger.warning("Destination stream is nil")
+            return
+        }
+        if !destinationStream.isActive() {
+            return
+        }
+
         let inputFormat = buffer.format
         let inputSampleRate = inputFormat.sampleRate
         
@@ -131,8 +143,6 @@ class AudioTranscriber {
             return
         }
 
-        // print("inputFormat: \(inputFormat)")
-        
         // Use AVAudioConverter for format conversion (handles channel mixing, sample rate, etc.)
         guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
             logger.warning("Failed to create audio converter from \(inputFormat) to \(targetFormat)")
@@ -175,12 +185,13 @@ class AudioTranscriber {
         let outputFrameLength = Int(outputBuffer.frameLength)
         let monoAudioData = Array(UnsafeBufferPointer(start: outputFloatChannelData[0], count: outputFrameLength))
 
-        let destinationStreamOptional: MoonshineVoice.Stream? = (audioType == SCStreamOutputType.microphone ? micStream : systemAudioStream)
-        guard let destinationStream = destinationStreamOptional else {
-            logger.warning("Destination stream is nil")
-            return
-        }
         try destinationStream.addAudio(monoAudioData, sampleRate: Int32(targetFormat.sampleRate))
+
+        if audioType == SCStreamOutputType.microphone {
+            transcriptDocument?.addMicAudio(monoAudioData)
+        } else {
+            transcriptDocument?.addSystemAudio(monoAudioData)
+        }
     }
     
     /// Handle transcript events and print to console.

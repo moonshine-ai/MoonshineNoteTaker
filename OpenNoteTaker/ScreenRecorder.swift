@@ -192,19 +192,19 @@ class ScreenRecorder: NSObject,
             initializeTranscription()
             isSetup = true
         }
-
-        do {
-            try captureEngine.startTranscription()
-        } catch {
-            logger.error("Failed to start transcription: \(error.localizedDescription)")
-        }
         
         // Start the transcript document session
         transcriptDocument.startSession()
         
         // Connect the transcript document to the capture engine
         captureEngine.setTranscriptDocument(transcriptDocument)
-                
+
+        do {
+            try captureEngine.startTranscription()
+        } catch {
+            logger.error("Failed to start transcription: \(error.localizedDescription)")
+        }
+
         do {
             let config = streamConfiguration
             let filter = contentFilter
