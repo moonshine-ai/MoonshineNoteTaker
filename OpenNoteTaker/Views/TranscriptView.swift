@@ -25,12 +25,13 @@ let defaultFontSize: Double = 13.0
 struct TranscriptView: View {
     @ObservedObject var document: TranscriptDocument
     @State private var attributedText: NSAttributedString = NSAttributedString()
+    @State private var selectionRange: NSRange? = nil
     @State private var isUpdatingFromDocument = false
     @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
     @EnvironmentObject var zoomHandler: ZoomHandler
     
     var body: some View {
-        ProvenanceTrackingTextEditor(attributedText: $attributedText, fontSize: fontSize)
+        ProvenanceTrackingTextEditor(attributedText: $attributedText, selectionRange: $selectionRange, fontSize: fontSize)
             .font(.body)
             .padding(.top, 4)
             .onChange(of: attributedText) { oldValue, newValue in
@@ -50,6 +51,16 @@ struct TranscriptView: View {
             }
             .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
                 updateAttributedTextFromDocument()
+            }
+            .onChange(of: selectionRange) { oldRange, newRange in
+                print("selectionRange: \(newRange)")
+                var selectedLineIds: [UInt64] = []
+                attributedText.enumerateAttribute(.transcriptLineMetadata, in: newRange!, options: []) { value, range, _ in
+                    if let data = value as? Data, let metadata = decodeMetadata(data) {
+                        selectedLineIds.append(metadata.lineId)
+                    }
+                }
+                document.setPlaybackRangeFromLineIds(lineIds: selectedLineIds)
             }
             .onAppear {
                 // Initialize text content from document

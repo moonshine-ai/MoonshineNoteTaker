@@ -149,6 +149,7 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
 
 class ProvenanceTextView: NSTextView {
     var onTextChange: ((NSAttributedString) -> Void)?
+    var onSelectionChange: ((NSRange) -> Void)?
     private let bottomPadding: CGFloat = 50
     
     convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
@@ -182,6 +183,13 @@ class ProvenanceTextView: NSTextView {
         let copy = NSMutableAttributedString(attributedString: attrString)
         onTextChange?(copy)
     }
+
+    override func setSelectedRange(_ charRange: NSRange, affinity: NSSelectionAffinity, stillSelecting: Bool) {
+        super.setSelectedRange(charRange, affinity: affinity, stillSelecting: stillSelecting)
+        if !stillSelecting {
+            onSelectionChange?(charRange)
+        }
+    }
     
     override func layout() {
         super.layout()
@@ -189,7 +197,7 @@ class ProvenanceTextView: NSTextView {
             self?.adjustFrameForBottomPadding()
         }
     }
-    
+
     private func adjustFrameForBottomPadding() {
         guard let textContainer = self.textContainer,
               let layoutManager = textContainer.layoutManager else { return }
@@ -294,6 +302,7 @@ class AutoScrollView: NSScrollView {
 
 struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     @Binding var attributedText: NSAttributedString
+    @Binding var selectionRange: NSRange?
     var fontSize: CGFloat
     
     func makeNSView(context: Context) -> NSScrollView {
@@ -334,7 +343,12 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
                 self.attributedText = newAttrString
             }
         }
-        
+        textView.onSelectionChange = { newRange in
+            print("onSelectionChange: \(newRange)")
+            DispatchQueue.main.async {
+                self.selectionRange = newRange
+            }
+        }
         return scrollView
     }
     
@@ -345,7 +359,24 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         let areEqual = textViewAttrString == attributedText
         
         if !areEqual {            
+            let selectedRanges = textView.selectedRanges
+
             textView.textStorage?.setAttributedString(attributedText)
+
+            // Restore selection, clamping to valid range
+            let maxLocation = textView.textStorage?.length ?? 0
+            let restoredRanges = selectedRanges.compactMap { rangeValue -> NSValue? in
+                let range = rangeValue.rangeValue
+                if range.location <= maxLocation {
+                    let clampedLength = min(range.length, maxLocation - range.location)
+                    return NSValue(range: NSRange(location: range.location, length: clampedLength))
+                }
+                return nil
+            }
+
+            if !restoredRanges.isEmpty {
+                textView.setSelectedRanges(restoredRanges, affinity: .downstream, stillSelecting: false)
+            }
         }
     }
 }

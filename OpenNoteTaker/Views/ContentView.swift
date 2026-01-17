@@ -60,7 +60,9 @@ struct ContentView: View {
                         Task {
                             if audioPlayer.isPlaying {
                                 audioPlayer.stop()
-                            } else {
+                                document.blockPlaybackRangeUpdates = false
+                            } else {                                
+                                document.blockPlaybackRangeUpdates = true
                                 try audioPlayer.play()
                             }
                         }
@@ -120,6 +122,7 @@ struct ContentView: View {
                     case .playbackReachedEnd:
                         // Automatically stop playback when it reaches the end
                         audioPlayer.stop()
+                        document.blockPlaybackRangeUpdates = false
                         document.resetCurrentPlaybackOffset()
                     case .playbackLineIdsUpdated(_, let newLineIds):
                         document.playingLineIds = newLineIds

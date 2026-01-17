@@ -98,6 +98,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     private var playbackEndOffset: Int = 0
     private var currentPlaybackOffset: Int = 0
     private var reachedEnd: Bool = false
+    public var blockPlaybackRangeUpdates: Bool = false
 
     /// Thread-safe cached snapshot for background thread access during saves
     private nonisolated(unsafe) var cachedSnapshot: DocumentData?
@@ -567,6 +568,17 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         return globalOffset
     }
 
+    func getGlobalOffsetFromTime(time: Date) -> Int {
+        for (blockIndex, block) in recordingBlocks.enumerated() {
+            print("block.startTime: \(block.startTime), block.endTime: \(block.endTime)")
+            if time >= block.startTime && time <= block.endTime {
+                let relativeTime = time.timeIntervalSince(block.startTime)
+                return getGlobalOffset(blockIndex: blockIndex, blockOffset: Int(relativeTime * 48000.0))
+            }
+        }
+        return 0
+    }
+
     func getLineIdsForRange(startOffset: Int, endOffset: Int) -> [UInt64] {
         let (startBlockIndex, startBlockOffset) = getBlockIndexAndOffset(index: startOffset)
         let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: endOffset)
@@ -592,15 +604,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
             return ([], [], true)
         }
 
-        let playbackGlobalEndOffset: Int
-        if playbackEndOffset != -1 {
-            playbackGlobalEndOffset = min(playbackEndOffset, currentPlaybackOffset + Int(length))
-        } else {
-            playbackGlobalEndOffset = currentPlaybackOffset + Int(length)
-        }
-
         let (startBlockIndex, startBlockOffset) = getBlockIndexAndOffset(index: currentPlaybackOffset)
-        let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: playbackGlobalEndOffset)
+        let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: currentPlaybackOffset + Int(length))
         var micAudio: [Float] = []
         var systemAudio: [Float] = []
         var currentGlobalOffset = currentPlaybackOffset
@@ -622,7 +627,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
             currentGlobalOffset += currentEndOffset - currentStartOffset
         }
         if playbackEndOffset != -1 {
-            self.reachedEnd = currentGlobalOffset >= playbackGlobalEndOffset
+            self.reachedEnd = currentGlobalOffset >= playbackEndOffset
         } else {
             let lastBlockIndex = recordingBlocks.count - 1
             let lastBlock = recordingBlocks[lastBlockIndex]
@@ -640,7 +645,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         } else if systemAudio.count > length {
             systemAudio = Array(systemAudio.prefix(Int(length)))
         }
-        let lineIds = getLineIdsForRange(startOffset: currentPlaybackOffset, endOffset: playbackGlobalEndOffset)
+        let lineIds = getLineIdsForRange(startOffset: currentPlaybackOffset, endOffset: currentGlobalOffset)
         if !self.reachedEnd {
             currentPlaybackOffset += Int(length)
         }
@@ -649,6 +654,9 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     }
 
     func setPlaybackRange(startOffset: Int, endOffset: Int) {
+        if blockPlaybackRangeUpdates {
+            return
+        }
         playbackStartOffset = startOffset
         playbackEndOffset = endOffset
         currentPlaybackOffset = startOffset
@@ -658,6 +666,31 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     func resetCurrentPlaybackOffset() {
         currentPlaybackOffset = playbackStartOffset
         reachedEnd = false
+    }
+
+    func setPlaybackRangeFromLineIds(lineIds: [UInt64]) {
+        print("lineIds: \(lineIds)")
+        var startTime: Date? = nil
+        var endTime: Date? = nil
+        for line in lines {
+            if lineIds.contains(line.id) {
+                if startTime == nil || line.startTime < startTime! {
+                    startTime = line.startTime
+                }
+                if endTime == nil || line.endTime > endTime! {
+                    endTime = line.endTime
+                }
+            }
+        }
+        print("startTime: \(startTime), endTime: \(endTime)")
+        if startTime == nil || endTime == nil {
+            setPlaybackRange(startOffset: 0, endOffset: -1)
+        } else {
+            let startOffset = getGlobalOffsetFromTime(time: startTime!)
+            let endOffset = getGlobalOffsetFromTime(time: endTime!)
+            print("startOffset: \(startOffset), endOffset: \(endOffset)")
+            setPlaybackRange(startOffset: startOffset, endOffset: endOffset)
+        }
     }
 }
 
