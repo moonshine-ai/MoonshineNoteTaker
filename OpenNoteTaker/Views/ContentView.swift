@@ -10,6 +10,7 @@ import ScreenCaptureKit
 import OSLog
 import Combine
 import AppKit
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var document: TranscriptDocument
@@ -126,6 +127,9 @@ struct ContentView: View {
             }
         }
         .background(Color.white)
+        .onDrop(of: [UTType.item], isTargeted: nil) { providers in
+            handleFileDrop(providers: providers)
+        }
         .onAppear {
             // Connect the undo manager from DocumentGroup to the document
             document.undoManager = undoManager
@@ -165,5 +169,61 @@ struct ContentView: View {
             // Update the document's undo manager if it changes
             document.undoManager = newValue
         }
+    }
+    
+    /// Handle file drops on the document window
+    private func handleFileDrop(providers: [NSItemProvider]) -> Bool {
+        var urls: [URL] = []
+        let group = DispatchGroup()
+        
+        for provider in providers {
+            group.enter()
+            // Try loading as file URL first
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (data, error) in
+                    defer { group.leave() }
+                    
+                    if let error = error {
+                        print("Error loading dropped file: \(error.localizedDescription)")
+                        return
+                    }
+                    
+                    if let data = data as? Data,
+                       let urlString = String(data: data, encoding: .utf8),
+                       let url = URL(string: urlString) {
+                        urls.append(url)
+                    } else if let url = data as? URL {
+                        urls.append(url)
+                    }
+                }
+            } else {
+                // Fallback: try loading as a general item
+                provider.loadItem(forTypeIdentifier: UTType.item.identifier, options: nil) { (data, error) in
+                    defer { group.leave() }
+                    
+                    if let error = error {
+                        print("Error loading dropped file: \(error.localizedDescription)")
+                        return
+                    }
+                    
+                    if let url = data as? URL {
+                        urls.append(url)
+                    } else if let data = data as? Data,
+                              let urlString = String(data: data, encoding: .utf8),
+                              let url = URL(string: urlString) {
+                        urls.append(url)
+                    }
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            // Print all URLs
+            for url in urls {
+                print("Dropped file URL: \(url.absoluteString)")
+            }
+        }
+        
+        return true
     }
 }
