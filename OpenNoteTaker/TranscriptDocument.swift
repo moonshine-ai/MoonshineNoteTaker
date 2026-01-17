@@ -526,7 +526,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         recordingBlocksLock.lock()
         defer { recordingBlocksLock.unlock() }
         recordingBlocks.append(RecordingBlock(startTime: Date(), endTime: Date(), micAudio: [], systemAudio: []))
-        print("startNewRecordingBlock")
     }
 
     func endCurrentRecordingBlock() {
@@ -570,7 +569,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
 
     func getGlobalOffsetFromTime(time: Date) -> Int {
         for (blockIndex, block) in recordingBlocks.enumerated() {
-            print("block.startTime: \(block.startTime), block.endTime: \(block.endTime)")
             if time >= block.startTime && time <= block.endTime {
                 let relativeTime = time.timeIntervalSince(block.startTime)
                 return getGlobalOffset(blockIndex: blockIndex, blockOffset: Int(relativeTime * 48000.0))
@@ -669,7 +667,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     }
 
     func setPlaybackRangeFromLineIds(lineIds: [UInt64]) {
-        print("lineIds: \(lineIds)")
         var startTime: Date? = nil
         var endTime: Date? = nil
         for line in lines {
@@ -682,13 +679,11 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
                 }
             }
         }
-        print("startTime: \(startTime), endTime: \(endTime)")
         if startTime == nil || endTime == nil {
             setPlaybackRange(startOffset: 0, endOffset: -1)
         } else {
             let startOffset = getGlobalOffsetFromTime(time: startTime!)
             let endOffset = getGlobalOffsetFromTime(time: endTime!)
-            print("startOffset: \(startOffset), endOffset: \(endOffset)")
             setPlaybackRange(startOffset: startOffset, endOffset: endOffset)
         }
     }

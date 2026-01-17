@@ -344,7 +344,6 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
             }
         }
         textView.onSelectionChange = { newRange in
-            print("onSelectionChange: \(newRange)")
             DispatchQueue.main.async {
                 self.selectionRange = newRange
             }

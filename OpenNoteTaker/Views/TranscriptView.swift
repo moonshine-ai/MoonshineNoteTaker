@@ -53,7 +53,6 @@ struct TranscriptView: View {
                 updateAttributedTextFromDocument()
             }
             .onChange(of: selectionRange) { oldRange, newRange in
-                print("selectionRange: \(newRange)")
                 var selectedLineIds: [UInt64] = []
                 attributedText.enumerateAttribute(.transcriptLineMetadata, in: newRange!, options: []) { value, range, _ in
                     if let data = value as? Data, let metadata = decodeMetadata(data) {

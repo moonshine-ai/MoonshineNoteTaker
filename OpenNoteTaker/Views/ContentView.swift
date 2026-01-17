@@ -9,6 +9,7 @@ import SwiftUI
 import ScreenCaptureKit
 import OSLog
 import Combine
+import AppKit
 
 struct ContentView: View {
     @ObservedObject var document: TranscriptDocument
@@ -55,6 +56,14 @@ struct ContentView: View {
                             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    .help(screenRecorder.isRunning ? "Stop Recording" : "Start Recording")
                     .padding(.bottom, 10)
                     Button(action: {
                         Task {
@@ -76,6 +85,14 @@ struct ContentView: View {
                             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    .help(audioPlayer.isPlaying ? "Pause" : "Play")
                     .padding(.bottom, 10)
                 }
             }            
