@@ -687,6 +687,12 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
             setPlaybackRange(startOffset: startOffset, endOffset: endOffset)
         }
     }
+
+    func hasAudioData() -> Bool {
+        recordingBlocksLock.lock()
+        defer { recordingBlocksLock.unlock() }
+        return recordingBlocks.count > 0
+    }
 }
 
 // MARK: - Codable Support for Persistence

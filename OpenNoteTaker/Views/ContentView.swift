@@ -56,14 +56,20 @@ struct ContentView: View {
                             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
+                    .disabled(audioPlayer.isPlaying)
+                    .opacity(audioPlayer.isPlaying ? 0.5 : 1.0)
                     .onHover { hovering in
                         if hovering {
-                            NSCursor.pointingHand.push()
+                            if audioPlayer.isPlaying {
+                                NSCursor.operationNotAllowed.push()
+                            } else {
+                                NSCursor.pointingHand.push()
+                            }
                         } else {
                             NSCursor.pop()
                         }
                     }
-                    .help(screenRecorder.isRunning ? "Stop Recording" : "Start Recording")
+                    .help(audioPlayer.isPlaying ? "Playback in progress" : (screenRecorder.isRunning ? "Stop Recording" : "Start Recording"))
                     .padding(.bottom, 10)
                     Button(action: {
                         Task {
@@ -85,14 +91,20 @@ struct ContentView: View {
                             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!document.hasAudioData() || screenRecorder.isRunning)
+                    .opacity((document.hasAudioData() && !screenRecorder.isRunning) ? 1.0 : 0.5)
                     .onHover { hovering in
                         if hovering {
-                            NSCursor.pointingHand.push()
+                            if document.hasAudioData() && !screenRecorder.isRunning {
+                                NSCursor.pointingHand.push()
+                            } else {
+                                NSCursor.operationNotAllowed.push()
+                            }
                         } else {
                             NSCursor.pop()
                         }
                     }
-                    .help(audioPlayer.isPlaying ? "Pause" : "Play")
+                    .help(audioPlayer.isPlaying ? "Pause" : (screenRecorder.isRunning ? "Recording in progress" : (document.hasAudioData() ? "Play" : "No audio recorded")))
                     .padding(.bottom, 10)
                 }
             }            
