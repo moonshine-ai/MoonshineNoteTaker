@@ -6,12 +6,14 @@ import Combine
 enum AudioPlayerEvent {
     case playbackReachedEnd
     case playbackError(Error)
+    case playbackLineIdsUpdated(oldLineIds: [UInt64], newLineIds: [UInt64])
 }
 
 class AudioPlayer: ObservableObject {
     let engine: AVAudioEngine
     var transcriptDocument: TranscriptDocument
     @Published var isPlaying: Bool = false
+    private var currentLineIds: [UInt64] = []
     
     /// Subject for posting events from the audio thread to the main thread
     /// Use this to communicate events that occur in the render callback
@@ -39,9 +41,20 @@ class AudioPlayer: ObservableObject {
             let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
             let buffer = ablPointer[0].mData!.assumingMemoryBound(to: Float.self)
             
-            let (audio, reachedEnd) = self.transcriptDocument.getNextAudioData(length: frameCount)
+            let (audio, lineIds, reachedEnd) = self.transcriptDocument.getNextAudioData(length: frameCount)
+            
             for i in 0..<audio.count {
                 buffer[i] = audio[i]
+            }
+
+            if lineIds != self.currentLineIds {
+                let eventSubject = self.eventSubject
+                let oldLineIds = self.currentLineIds
+                let newLineIds = lineIds
+                DispatchQueue.main.async { [weak eventSubject, oldLineIds, newLineIds] in
+                    eventSubject?.send(.playbackLineIdsUpdated(oldLineIds: oldLineIds, newLineIds: newLineIds))
+                }
+                self.currentLineIds = lineIds
             }
             
             // Post event to main thread if playback reached end (only once)

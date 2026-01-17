@@ -83,6 +83,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     
     /// The transcript lines, maintained in time order.
     @Published private(set) var lines: [TranscriptLine] = []
+
+    @Published var playingLineIds: [UInt64] = []
     
     /// The start time of the recording session.
     @Published var sessionStartTime: Date?
@@ -554,12 +556,29 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         return (recordingBlocks.count - 1, lastBlock.micAudio.count)
     }
 
-    func getNextAudioData(length: UInt32) -> ([Float], Bool) {
+    func getLineIdsForRange(startOffset: Int, endOffset: Int) -> [UInt64] {
+        let (startBlockIndex, startBlockOffset) = getBlockIndexAndOffset(index: startOffset)
+        let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: endOffset)
+        var lineIds: [UInt64] = []
+        let rangeStartTime = recordingBlocks[startBlockIndex].startTime + TimeInterval(Double(startBlockOffset) / 48000.0)
+        let rangeEndTime = recordingBlocks[endBlockIndex].startTime + TimeInterval(Double(endBlockOffset) / 48000.0)
+        for line in lines {
+            let lineStartOverlaps = rangeStartTime >= line.startTime && rangeStartTime <= line.endTime
+            let lineEndOverlaps = rangeEndTime >= line.endTime && rangeEndTime <= line.endTime
+            let rangeOverlapsLine = line.startTime >= rangeStartTime && line.endTime <= rangeEndTime
+            if lineStartOverlaps || lineEndOverlaps || rangeOverlapsLine {
+                lineIds.append(line.id)
+            }
+        }
+        return lineIds
+    }
+
+    func getNextAudioData(length: UInt32) -> ([Float], [UInt64], Bool) {
         recordingBlocksLock.lock()
         defer { recordingBlocksLock.unlock() }
 
         if self.reachedEnd {
-            return ([0.0], true)
+            return ([], [], true)
         }
 
         let (startBlockIndex, startOffset) = getBlockIndexAndOffset(index: playbackOffset)
@@ -596,11 +615,12 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         } else if systemAudio.count > length {
             systemAudio = Array(systemAudio.prefix(Int(length)))
         }
+        let lineIds = getLineIdsForRange(startOffset: playbackOffset, endOffset: playbackOffset + Int(length))
         if !self.reachedEnd {
             playbackOffset += Int(length)
         }
         let mixedAudio = zip(micAudio, systemAudio).map { $0 + $1 }
-        return (mixedAudio, self.reachedEnd)
+        return (mixedAudio, lineIds, self.reachedEnd)
     }
 
     func resetPlaybackOffset() {

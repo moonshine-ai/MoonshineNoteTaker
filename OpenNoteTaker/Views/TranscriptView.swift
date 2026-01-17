@@ -48,10 +48,13 @@ struct TranscriptView: View {
             .onChange(of: document.lines.last?.text) { oldText, newText in
                 updateAttributedTextFromDocument()
             }
+            .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
+                updateAttributedTextFromDocument()
+            }
             .onAppear {
                 // Initialize text content from document
                 let segments = document.getViewSegments()
-                attributedText = makeAttributedString(from: segments)
+                attributedText = makeAttributedString(from: segments, playingLineIds: document.playingLineIds, fontSize: fontSize)
                 
                 // Register zoom handlers
                 zoomHandler.zoomIn = { self.zoomIn() }
@@ -88,7 +91,7 @@ struct TranscriptView: View {
         guard !isUpdatingFromDocument else { return }
         
         let documentSegments = document.getViewSegments()
-        let newAttributedText = makeAttributedString(from: documentSegments)
+        let newAttributedText = makeAttributedString(from: documentSegments, playingLineIds: document.playingLineIds, fontSize: fontSize)
         
         // Compare with current attributed text to avoid unnecessary updates
         // This prevents circular updates when the content is already in sync
@@ -123,14 +126,17 @@ struct TranscriptView: View {
     // Zoom functions
     func zoomIn() {
         fontSize = min(fontSize + 1.0, 72.0)
+        updateAttributedTextFromDocument()
     }
     
     func zoomOut() {
         fontSize = max(fontSize - 1.0, 8.0)
+        updateAttributedTextFromDocument()
     }
     
     func zoomReset() {
         fontSize = defaultFontSize
+        updateAttributedTextFromDocument()
     }
 }
 

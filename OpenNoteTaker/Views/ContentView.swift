@@ -119,6 +119,8 @@ struct ContentView: View {
                         // Automatically stop playback when it reaches the end
                         audioPlayer.stop()
                         print("Playback reached end")
+                    case .playbackLineIdsUpdated(_, let newLineIds):
+                        document.playingLineIds = newLineIds
                     case .playbackError(let error):
                         // Handle playback errors
                         print("Playback error: \(error.localizedDescription)")

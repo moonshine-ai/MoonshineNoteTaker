@@ -341,43 +341,30 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? ProvenanceTextView else { return }
         
-        // Update font size if it changed - apply to all text
-        if let currentFont = textView.font, currentFont.pointSize != fontSize {
-            textView.font = NSFont.systemFont(ofSize: fontSize)
-            // Apply font size to all existing text
-            if let textStorage = textView.textStorage, textStorage.length > 0 {
-                let font = NSFont.systemFont(ofSize: fontSize)
-                let fullRange = NSRange(location: 0, length: textStorage.length)
-                textStorage.addAttribute(.font, value: font, range: fullRange)
-            }
-        }
-        
         let textViewAttrString = textView.attributedString()
         let areEqual = textViewAttrString == attributedText
         
         if !areEqual {            
-            let selectedRange = textView.selectedRange()
             textView.textStorage?.setAttributedString(attributedText)
-            // Apply font size to the newly set text
-            if let textStorage = textView.textStorage, textStorage.length > 0 {
-                let font = NSFont.systemFont(ofSize: fontSize)
-                let fullRange = NSRange(location: 0, length: textStorage.length)
-                textStorage.addAttribute(.font, value: font, range: fullRange)
-            }
-            if selectedRange.location <= attributedText.length {
-                textView.setSelectedRange(selectedRange)
-            }
         }
     }
 }
 
 // MARK: - Helper Functions
 
-func makeAttributedString(from segments: [TranscriptTextSegment]) -> NSAttributedString {
+func makeAttributedString(from segments: [TranscriptTextSegment], playingLineIds: [UInt64], fontSize: CGFloat) -> NSAttributedString {
     let result = NSMutableAttributedString()
+    let baseFont = NSFont.systemFont(ofSize: fontSize)
+    let boldFont = NSFont.boldSystemFont(ofSize: fontSize)
+    
     for segment in segments {
         guard let encoded = encodeMetadata(segment.metadata) else { continue }
-        let attrs: [NSAttributedString.Key: Any] = [.transcriptLineMetadata: encoded]
+        var attrs: [NSMutableAttributedString.Key: Any] = [.transcriptLineMetadata: encoded]
+        if playingLineIds.contains(segment.metadata.lineId) {
+            attrs[.font] = boldFont
+        } else {
+            attrs[.font] = baseFont
+        }
         let segmentStr = NSAttributedString(string: segment.text, attributes: attrs)
         result.append(segmentStr)
     }
