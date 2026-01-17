@@ -109,6 +109,8 @@ struct ContentView: View {
             }
             audioPlayer.transcriptDocument = document
             
+            document.setPlaybackRange(startOffset: 0, endOffset: -1)
+
             // Subscribe to audio player events
             // These events are posted from the audio thread and handled on the main thread
             audioPlayerCancellable = audioPlayer.events
@@ -118,7 +120,7 @@ struct ContentView: View {
                     case .playbackReachedEnd:
                         // Automatically stop playback when it reaches the end
                         audioPlayer.stop()
-                        print("Playback reached end")
+                        document.resetCurrentPlaybackOffset()
                     case .playbackLineIdsUpdated(_, let newLineIds):
                         document.playingLineIds = newLineIds
                     case .playbackError(let error):

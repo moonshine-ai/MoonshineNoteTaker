@@ -77,7 +77,6 @@ class AudioPlayer: ObservableObject {
     func play() throws {
         isPlaying = true
         hasSentEndEvent = false  // Reset flag when starting playback
-        transcriptDocument.resetPlaybackOffset()
         try engine.start()
     }
 

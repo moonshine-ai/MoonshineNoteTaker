@@ -94,7 +94,9 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     
     private var recordingBlocks: [RecordingBlock] = []
     private nonisolated let recordingBlocksLock = NSLock()
-    private var playbackOffset: Int = 0
+    private var playbackStartOffset: Int = 0
+    private var playbackEndOffset: Int = 0
+    private var currentPlaybackOffset: Int = 0
     private var reachedEnd: Bool = false
 
     /// Thread-safe cached snapshot for background thread access during saves
@@ -556,6 +558,15 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         return (recordingBlocks.count - 1, lastBlock.micAudio.count)
     }
 
+    func getGlobalOffset(blockIndex: Int, blockOffset: Int) -> Int {
+        var globalOffset = 0
+        for i in 0..<blockIndex {
+            globalOffset += recordingBlocks[i].micAudio.count
+        }
+        globalOffset += blockOffset
+        return globalOffset
+    }
+
     func getLineIdsForRange(startOffset: Int, endOffset: Int) -> [UInt64] {
         let (startBlockIndex, startBlockOffset) = getBlockIndexAndOffset(index: startOffset)
         let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: endOffset)
@@ -581,30 +592,44 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
             return ([], [], true)
         }
 
-        let (startBlockIndex, startOffset) = getBlockIndexAndOffset(index: playbackOffset)
-        let (endBlockIndex, endOffset) = getBlockIndexAndOffset(index: playbackOffset + Int(length))
+        let playbackGlobalEndOffset: Int
+        if playbackEndOffset != -1 {
+            playbackGlobalEndOffset = min(playbackEndOffset, currentPlaybackOffset + Int(length))
+        } else {
+            playbackGlobalEndOffset = currentPlaybackOffset + Int(length)
+        }
+
+        let (startBlockIndex, startBlockOffset) = getBlockIndexAndOffset(index: currentPlaybackOffset)
+        let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: playbackGlobalEndOffset)
         var micAudio: [Float] = []
         var systemAudio: [Float] = []
-        var currentOffset = startOffset
+        var currentGlobalOffset = currentPlaybackOffset
         for blockIndex in startBlockIndex...endBlockIndex {
             let currentStartOffset: Int
             if blockIndex == startBlockIndex {
-                currentStartOffset = startOffset
+                currentStartOffset = startBlockOffset
             } else {
                 currentStartOffset = 0
             }
             let currentEndOffset: Int
             if blockIndex == endBlockIndex {
-                currentEndOffset = endOffset
+                currentEndOffset = endBlockOffset
             } else {
                 currentEndOffset = recordingBlocks[blockIndex].micAudio.count
             }
             micAudio.append(contentsOf: recordingBlocks[blockIndex].micAudio[currentStartOffset..<currentEndOffset])
             systemAudio.append(contentsOf: recordingBlocks[blockIndex].systemAudio[currentStartOffset..<currentEndOffset])
-            currentOffset += Int(length)
+            currentGlobalOffset += currentEndOffset - currentStartOffset
         }
-        self.reachedEnd = (endBlockIndex == recordingBlocks.count - 1 && 
-            endOffset >= recordingBlocks[endBlockIndex].micAudio.count)
+        if playbackEndOffset != -1 {
+            self.reachedEnd = currentGlobalOffset >= playbackGlobalEndOffset
+        } else {
+            let lastBlockIndex = recordingBlocks.count - 1
+            let lastBlock = recordingBlocks[lastBlockIndex]
+            let lastBlockSize = lastBlock.micAudio.count
+            let globalEndOffset = getGlobalOffset(blockIndex: lastBlockIndex, blockOffset: lastBlockSize)
+            self.reachedEnd = currentGlobalOffset >= globalEndOffset
+        }
         if micAudio.count < length {
             micAudio.append(contentsOf: Array(repeating: 0.0, count: Int(length) - micAudio.count))
         } else if micAudio.count > length {
@@ -615,16 +640,23 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         } else if systemAudio.count > length {
             systemAudio = Array(systemAudio.prefix(Int(length)))
         }
-        let lineIds = getLineIdsForRange(startOffset: playbackOffset, endOffset: playbackOffset + Int(length))
+        let lineIds = getLineIdsForRange(startOffset: currentPlaybackOffset, endOffset: playbackGlobalEndOffset)
         if !self.reachedEnd {
-            playbackOffset += Int(length)
+            currentPlaybackOffset += Int(length)
         }
         let mixedAudio = zip(micAudio, systemAudio).map { $0 + $1 }
         return (mixedAudio, lineIds, self.reachedEnd)
     }
 
-    func resetPlaybackOffset() {
-        playbackOffset = 0
+    func setPlaybackRange(startOffset: Int, endOffset: Int) {
+        playbackStartOffset = startOffset
+        playbackEndOffset = endOffset
+        currentPlaybackOffset = startOffset
+        reachedEnd = false
+    }
+
+    func resetCurrentPlaybackOffset() {
+        currentPlaybackOffset = playbackStartOffset
         reachedEnd = false
     }
 }
