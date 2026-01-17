@@ -181,23 +181,24 @@ class ScreenRecorder: NSObject,
         .store(in: &subscriptions)
     }
     
-    /// Starts capturing screen content.
-    func start() async {
-        // Exit early if already running.
-        guard !isRunning else { return }
-        
+    func setUpIfNeeded() async {
         if !isSetup {
             // Starting polling for available screen content.
             await monitorAvailableContent()
             initializeTranscription()
             isSetup = true
+            captureEngine.setTranscriptDocument(transcriptDocument)
         }
-        
-        // Start the transcript document session
-        transcriptDocument.startSession()
-        
-        // Connect the transcript document to the capture engine
-        captureEngine.setTranscriptDocument(transcriptDocument)
+    }
+
+    /// Starts capturing screen content.
+    func start() async {
+        // Exit early if already running.
+        guard !isRunning else { return }
+                
+        await setUpIfNeeded()
+
+        transcriptDocument.startSession()        
 
         do {
             try captureEngine.startTranscription()
@@ -536,23 +537,13 @@ class ScreenRecorder: NSObject,
             if FileManager.default.fileExists(atPath: modelPath) {
                 return modelPath
             }
-        }
-        
-//        // If model is not in bundle, try to find it relative to the framework
-//        if let resourcePath = bundle.resourcePath {
-//            let possiblePaths = [
-//                (resourcePath as NSString).appendingPathComponent("test-assets/tiny-en"),
-//                (resourcePath as NSString).appendingPathComponent("tiny-en")
-//            ]
-//            
-//            for path in possiblePaths {
-//                if FileManager.default.fileExists(atPath: path) {
-//                    return path
-//                }
-//            }
-//        }
-        
+        }        
         return nil
+    }
+
+    func getAudioTranscriber() async -> AudioTranscriber? {
+        await setUpIfNeeded()
+        return captureEngine.audioTranscriber
     }
 }
 

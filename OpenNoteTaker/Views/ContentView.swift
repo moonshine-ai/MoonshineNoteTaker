@@ -11,6 +11,7 @@ import OSLog
 import Combine
 import AppKit
 import UniformTypeIdentifiers
+import AVFoundation
 
 struct ContentView: View {
     @ObservedObject var document: TranscriptDocument
@@ -20,6 +21,7 @@ struct ContentView: View {
     @State var isUnauthorized = false
     @State private var audioPlayerCancellable: AnyCancellable?
     @State private var playbackReachedEnd = false
+    @State private var extractedAudioBuffers: [URL: [Float]] = [:]
     
     @StateObject var screenRecorder = ScreenRecorder()
     @StateObject var zoomHandler = ZoomHandler.shared
@@ -218,12 +220,145 @@ struct ContentView: View {
         }
         
         group.notify(queue: .main) {
-            // Print all URLs
+            // Extract audio from all dropped file URLs
             for url in urls {
-                print("Dropped file URL: \(url.absoluteString)")
+                Task {
+                    await extractAudioToPCMBuffer(from: url)
+                }
             }
         }
         
         return true
+    }
+    
+    /// Extract audio from a file URL using AVAssetExportSession and store as PCM buffer in memory
+    /// - Parameter url: The file URL to extract audio from
+    private func extractAudioToPCMBuffer(from url: URL) async {
+        // Create AVAsset from URL
+        let asset = AVAsset(url: url)
+        
+        // Check if asset has audio tracks
+        let audioTracks = try? await asset.loadTracks(withMediaType: .audio)
+        guard let tracks = audioTracks, !tracks.isEmpty else {
+            print("No audio tracks found in file: \(url.lastPathComponent)")
+            return
+        }
+        
+        // Create temporary file URL for exported audio
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFileURL = tempDir.appendingPathComponent(UUID().uuidString).appendingPathExtension("m4a")
+        
+        // Create export session
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
+            print("Failed to create export session for: \(url.lastPathComponent)")
+            return
+        }
+        
+        exportSession.outputURL = tempFileURL
+        exportSession.outputFileType = .m4a
+        
+        // Export audio to temporary file
+        await exportSession.export()
+        
+        guard exportSession.status == .completed else {
+            if let error = exportSession.error {
+                print("Export failed for \(url.lastPathComponent): \(error.localizedDescription)")
+            }
+            // Clean up temp file if it exists
+            try? FileManager.default.removeItem(at: tempFileURL)
+            return
+        }
+        
+        // Read the exported file into PCM buffer
+        do {
+            let audioFile = try AVAudioFile(forReading: tempFileURL)
+            let format = audioFile.processingFormat
+            
+            // Create target format: mono, float32, 48000 Hz (matching the app's standard format)
+            guard let targetFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 48000,
+                channels: 1,
+                interleaved: false
+            ) else {
+                print("Failed to create target audio format")
+                try? FileManager.default.removeItem(at: tempFileURL)
+                return
+            }
+            
+            // Use AVAudioConverter if format conversion is needed
+            let frameLength = AVAudioFrameCount(audioFile.length)
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameLength) else {
+                print("Failed to create audio buffer")
+                try? FileManager.default.removeItem(at: tempFileURL)
+                return
+            }
+            
+            try audioFile.read(into: buffer)
+            
+            // Convert to target format if needed
+            var pcmBuffer = buffer
+            if format != targetFormat {
+                guard let converter = AVAudioConverter(from: format, to: targetFormat) else {
+                    print("Failed to create audio converter")
+                    try? FileManager.default.removeItem(at: tempFileURL)
+                    return
+                }
+                
+                let ratio = targetFormat.sampleRate / format.sampleRate
+                let outputFrameCount = Int(ceil(Double(buffer.frameLength) * ratio))
+                
+                guard let convertedBuffer = AVAudioPCMBuffer(
+                    pcmFormat: targetFormat,
+                    frameCapacity: AVAudioFrameCount(outputFrameCount)
+                ) else {
+                    print("Failed to create converted buffer")
+                    try? FileManager.default.removeItem(at: tempFileURL)
+                    return
+                }
+                
+                var error: NSError?
+                let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
+                    outStatus.pointee = .haveData
+                    return buffer
+                }
+                
+                converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
+                
+                if let error = error {
+                    print("Audio conversion error: \(error.localizedDescription)")
+                    try? FileManager.default.removeItem(at: tempFileURL)
+                    return
+                }
+                
+                pcmBuffer = convertedBuffer
+            }
+            
+            // Extract PCM data as Float array
+            guard let floatChannelData = pcmBuffer.floatChannelData else {
+                print("Failed to extract float channel data")
+                try? FileManager.default.removeItem(at: tempFileURL)
+                return
+            }
+            
+            let pcmFrameLength = Int(pcmBuffer.frameLength)
+            let pcmData = Array(UnsafeBufferPointer(start: floatChannelData[0], count: pcmFrameLength))
+            
+            guard let audioTranscriber = await screenRecorder.getAudioTranscriber() else {
+                print("Audio transcriber not found")
+                return
+            }
+            await MainActor.run {
+                extractedAudioBuffers[url] = pcmData
+                audioTranscriber.addImportedAudio(buffer: pcmData, startTime: Date())
+            }
+                        
+            // Clean up temporary file
+            try? FileManager.default.removeItem(at: tempFileURL)
+            
+        } catch {
+            print("Error reading audio file: \(error.localizedDescription)")
+            try? FileManager.default.removeItem(at: tempFileURL)
+        }
     }
 }

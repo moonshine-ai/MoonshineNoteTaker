@@ -29,7 +29,15 @@ class AudioTranscriber {
         
     /// The time when transcription started, used to calculate relative start times.
     private var transcriptionStartTime: Date?
-    
+
+    /// Audio data from files dropped on the document window.
+    private var importedAudioBuffer: [Float] = []
+    private var importedAudioStartTime: Date? = nil
+    private var importedAudioStream: MoonshineVoice.Stream? = nil
+    private let importedAudioChunkDuration: Double = 5.0
+    private let importedAudioSampleRate: Int32 = 48000
+    private var importedAudioBufferLock = NSLock()
+
     /// Initialize the transcriber with a model path.
     /// - Parameter modelPath: Path to the directory containing model files (e.g., "tiny-en")
     /// - Throws: Error if transcriber cannot be initialized
@@ -64,6 +72,11 @@ class AudioTranscriber {
 
         // Add event listeners to print transcript changes and completions
         micStream?.addListener { [weak self] event in
+            self?.handleTranscriptEvent(event)
+        }
+
+        importedAudioStream = try transcriber?.createStream(updateInterval: importedAudioChunkDuration)
+        importedAudioStream?.addListener { [weak self] event in
             self?.handleTranscriptEvent(event)
         }
         
@@ -301,6 +314,49 @@ class AudioTranscriber {
     deinit {
         cleanup()
     }
+
+    func addImportedAudio(buffer: [Float], startTime: Date) {
+        let alreadyHasAudioData: Bool
+        do {
+            importedAudioBufferLock.lock()
+            defer { importedAudioBufferLock.unlock() }
+            alreadyHasAudioData = importedAudioBuffer.count > 0
+            importedAudioBuffer.append(contentsOf: buffer)
+        }
+        if alreadyHasAudioData {
+            return
+        }
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            let sampleRate = 48000
+            let chunkSeconds: Float = 5.0
+            let chunkSamples = Int(Float(sampleRate) * chunkSeconds)
+
+            try? self.importedAudioStream?.start()
+            
+            while true {
+                let importedAudioChunk: [Float] = importedAudioBufferLock.withLock {
+                    var chunk: [Float] = []
+                    if self.importedAudioBuffer.count >= chunkSamples {
+                        chunk = Array(self.importedAudioBuffer.prefix(chunkSamples))
+                        self.importedAudioBuffer.removeFirst(chunkSamples)
+                    } else if self.importedAudioBuffer.count > 0 {
+                        chunk = self.importedAudioBuffer
+                        self.importedAudioBuffer.removeAll()
+                    }
+                    return chunk
+                }
+                
+                if !importedAudioChunk.isEmpty {
+                    try? self.importedAudioStream?.addAudio(importedAudioChunk, sampleRate: importedAudioSampleRate)
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                } else {
+                    break
+                }
+            }
+        }
+        try? self.importedAudioStream?.stop()
+     }
 }
 
 /// Writes a single-channel float32 WAV file to disk.

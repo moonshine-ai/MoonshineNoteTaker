@@ -36,7 +36,7 @@ class CaptureEngine: NSObject, @unchecked Sendable {
     private let micSampleBufferQueue = DispatchQueue(label: "com.example.apple-samplecode.MicSampleBufferQueue")
         
     // Manages audio transcription using Moonshine Voice.
-    private let audioTranscriber = AudioTranscriber()
+    let audioTranscriber: AudioTranscriber = AudioTranscriber()
     
     /// Set the transcript document for the audio transcriber.
     /// - Parameter document: The transcript document to update
