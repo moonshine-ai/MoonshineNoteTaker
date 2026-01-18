@@ -186,8 +186,8 @@ class ScreenRecorder: NSObject,
             // Starting polling for available screen content.
             await monitorAvailableContent()
             initializeTranscription()
-            isSetup = true
             captureEngine.setTranscriptDocument(transcriptDocument)
+            isSetup = true
         }
     }
 

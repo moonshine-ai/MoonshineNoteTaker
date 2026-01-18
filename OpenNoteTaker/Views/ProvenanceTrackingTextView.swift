@@ -150,6 +150,7 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
 class ProvenanceTextView: NSTextView {
     var onTextChange: ((NSAttributedString) -> Void)?
     var onSelectionChange: ((NSRange) -> Void)?
+    var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
     private let bottomPadding: CGFloat = 50
     
     convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
@@ -169,6 +170,54 @@ class ProvenanceTextView: NSTextView {
         self.isVerticallyResizable = true
         self.isHorizontallyResizable = false
         self.textContainerInset = NSSize(width: 0, height: 0)
+        
+        // Unregister all drag types so file drops pass through to SwiftUI handler
+        // NSTextView automatically registers for file URLs and text, which interferes with SwiftUI's .onDrop
+        self.unregisterDraggedTypes()
+    }
+    
+    // Override drag methods to forward file drags to SwiftUI via callback
+    private func isFileDrag(_ sender: NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+        return pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+    }
+    
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // If it's a file drag and we have a callback, indicate we might accept it
+        // but we'll actually handle it in performDragOperation
+        if isFileDrag(sender), onFileDrag != nil {
+            return .copy  // Return a valid operation so the drag continues
+        }
+        // For non-file drags, don't handle (we unregistered all types)
+        return []
+    }
+    
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // Same as draggingEntered
+        if isFileDrag(sender), onFileDrag != nil {
+            return .copy
+        }
+        return []
+    }
+    
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // If it's a file drag, call the callback to let SwiftUI handle it
+        if isFileDrag(sender), let callback = onFileDrag {
+            return callback(sender)
+        }
+        // Never perform drag operation for non-files
+        return false
+    }
+    
+    // Override pasteboard reading to prevent file URLs from being inserted as text
+    override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        // Check if this is a file URL pasteboard type
+        if pboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
+            // Don't read file URLs - let SwiftUI handle them
+            return false
+        }
+        // For other types, also don't read (we don't want drag and drop)
+        return false
     }
     
     override func didChangeText() {
@@ -225,10 +274,14 @@ class AutoScrollView: NSScrollView {
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        // Unregister drag types so file drops pass through to SwiftUI
+        self.unregisterDraggedTypes()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        // Unregister drag types so file drops pass through to SwiftUI
+        self.unregisterDraggedTypes()
     }
     
     override func viewDidMoveToWindow() {
@@ -237,6 +290,17 @@ class AutoScrollView: NSScrollView {
             setupObserver()
             observerSetup = true
         }
+    }
+    
+    // Override drag methods to prevent file handling
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // Don't handle drags - let them pass through to SwiftUI
+        return []
+    }
+    
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // Don't handle drags - let SwiftUI handle them
+        return false
     }
     
     @MainActor
@@ -304,6 +368,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     @Binding var attributedText: NSAttributedString
     @Binding var selectionRange: NSRange?
     var fontSize: CGFloat
+    var onFileDrag: ((NSDraggingInfo) -> Bool)?
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = AutoScrollView()
@@ -348,6 +413,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
                 self.selectionRange = newRange
             }
         }
+        textView.onFileDrag = onFileDrag
         return scrollView
     }
     

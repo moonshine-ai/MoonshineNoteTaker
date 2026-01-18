@@ -29,9 +29,10 @@ struct TranscriptView: View {
     @State private var isUpdatingFromDocument = false
     @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
     @EnvironmentObject var zoomHandler: ZoomHandler
+    var onFileDrag: ((NSDraggingInfo) -> Bool)?
     
     var body: some View {
-        ProvenanceTrackingTextEditor(attributedText: $attributedText, selectionRange: $selectionRange, fontSize: fontSize)
+        ProvenanceTrackingTextEditor(attributedText: $attributedText, selectionRange: $selectionRange, fontSize: fontSize, onFileDrag: onFileDrag)
             .font(.body)
             .padding(.top, 4)
             .onChange(of: attributedText) { oldValue, newValue in

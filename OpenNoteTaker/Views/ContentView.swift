@@ -30,9 +30,10 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Main content area - transcript view fills entire space
-            TranscriptView(document: document)
+            TranscriptView(document: document, onFileDrag: handleFileDragFromTextView)
                 .environmentObject(zoomHandler)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
             
             // Floating recording button overlay at bottom center
             VStack {
@@ -171,6 +172,23 @@ struct ContentView: View {
             // Update the document's undo manager if it changes
             document.undoManager = newValue
         }
+    }
+    
+    /// Handle file drags from the text view (NSDraggingInfo)
+    private func handleFileDragFromTextView(_ sender: NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+        guard let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] else {
+            return false
+        }
+        
+        // Process the dropped files
+        for url in urls {
+            Task {
+                await extractAudioToPCMBuffer(from: url)
+            }
+        }
+        
+        return true
     }
     
     /// Handle file drops on the document window
