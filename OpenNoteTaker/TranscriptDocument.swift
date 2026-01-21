@@ -38,7 +38,8 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
   let source: Source
 
   init(
-    id: UInt64, text: String, startTime: Date, duration: TimeInterval, source: TranscriptLine.Source
+    id: UInt64, text: String, startTime: Date, duration: TimeInterval,
+    source: TranscriptLine.Source
   ) {
     self.id = id
     self.text = text
@@ -102,6 +103,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   private var currentPlaybackOffset: Int = 0
   private var reachedEnd: Bool = false
   public var blockPlaybackRangeUpdates: Bool = false
+
+  public var lineIdsNeedingRendering: [UInt64: Bool] = [:]
 
   /// Thread-safe cached snapshot for background thread access during saves
   private nonisolated(unsafe) var cachedSnapshot: DocumentData?
@@ -200,6 +203,10 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     self.sessionEndTime = sessionEndTime
     self.recordingBlocks = recordingBlocks
 
+    for line in lines {
+      lineIdsNeedingRendering[line.id] = true
+    }
+
     // Initialize the cached snapshot
     let snapshot = DocumentData(
       lines: lines,
@@ -238,6 +245,10 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     recordingBlocks: [RecordingBlock] = []
   ) {
     let sortedLines = lines.sorted { $0.startTime < $1.startTime }
+    for line in sortedLines {
+      lineIdsNeedingRendering[line.id] = true
+    }
+
     self.title = "Untitled"
     self.lines = sortedLines
     self.sessionStartTime = sessionStartTime
@@ -469,6 +480,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     let line = TranscriptLine(
       id: 0, text: "\n", startTime: Date(timeIntervalSince1970: 0), duration: 0,
       source: .systemAudio)
+    lineIdsNeedingRendering[line.id] = true
     lines.insert(line, at: 0)
   }
 
@@ -500,31 +512,20 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     } else {
       lines.append(line)
     }
+    lineIdsNeedingRendering[line.id] = true
     updateCachedSnapshot()
   }
 
-  /// Update an existing transcript line by ID.
-  /// - Parameters:
-  ///   - id: The ID of the line to update
-  ///   - text: The new text content
   @MainActor
   func updateLine(id: UInt64, text: String) {
     if let index = lines.firstIndex(where: { $0.id == id }) {
       var updatedLine = lines[index]
       updatedLine.text = text
       lines[index] = updatedLine
-      // Re-sort if needed (though startTime shouldn't change)
       lines.sort { $0.startTime < $1.startTime }
+      lineIdsNeedingRendering[id] = true
       updateCachedSnapshot()
     }
-  }
-
-  /// Remove a transcript line by ID.
-  /// - Parameter id: The ID of the line to remove
-  @MainActor
-  func removeLine(id: UInt64) {
-    lines.removeAll { $0.id == id }
-    updateCachedSnapshot()
   }
 
   @MainActor
