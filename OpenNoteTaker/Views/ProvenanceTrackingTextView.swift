@@ -44,7 +44,7 @@ func getMetadata(from attrs: [NSAttributedString.Key: Any]) -> TranscriptLineMet
 }
 
 class ProvenanceTrackingTextStorage: NSTextStorage {
-    private let backingStore = NSMutableAttributedString()
+    public let backingStore = NSMutableAttributedString()
     private var isEditing = false
     private var editedRangeStart: Int = 0
     private var editedRangeEnd: Int = 0
@@ -365,24 +365,29 @@ class AutoScrollView: NSScrollView {
 // MARK: - SwiftUI Wrapper
 
 struct ProvenanceTrackingTextEditor: NSViewRepresentable {
-    @Binding var attributedText: NSAttributedString
+    // @Binding var attributedText: NSAttributedString
     @Binding var selectionRange: NSRange?
     var fontSize: CGFloat
     var onFileDrag: ((NSDraggingInfo) -> Bool)?
+    var textViewRef: Binding<ProvenanceTextView?>?
+    var textStorageRef: Binding<ProvenanceTrackingTextStorage?>?
+    var onTextViewReady: ((ProvenanceTextView) -> Void)?
+    
+    class Coordinator {
+        var textView: ProvenanceTextView?
+        var textStorage: ProvenanceTrackingTextStorage?
+        
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = AutoScrollView()
         
         // Create custom text storage
         let textStorage = ProvenanceTrackingTextStorage()
-        if attributedText.length > 0 {
-            textStorage.setAttributedString(attributedText)
-            // Apply font size to initial text
-            let font = NSFont.systemFont(ofSize: fontSize)
-            let fullRange = NSRange(location: 0, length: textStorage.length)
-            textStorage.addAttribute(.font, value: font, range: fullRange)
-        }
-        
         let textView = ProvenanceTextView(frame: .zero, textStorage: textStorage)
         
         textView.isRichText = false
@@ -403,46 +408,91 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         
-        textView.onTextChange = { newAttrString in
-            DispatchQueue.main.async {
-                self.attributedText = newAttrString
-            }
-        }
         textView.onSelectionChange = { newRange in
             DispatchQueue.main.async {
                 self.selectionRange = newRange
             }
         }
         textView.onFileDrag = onFileDrag
+        
+        // Store reference in coordinator
+        context.coordinator.textView = textView
+        context.coordinator.textStorage = textStorage
+        
+        // // Set binding asynchronously to avoid "modifying state during view update" warning
+         DispatchQueue.main.async {
+            textViewRef?.wrappedValue = textView
+            textStorageRef?.wrappedValue = textStorage
+            onTextViewReady?(textView)
+         }
+        
         return scrollView
     }
     
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? ProvenanceTextView else { return }
+        guard let textView = context.coordinator.textView else { return }
         
-        let textViewAttrString = textView.attributedString()
-        let areEqual = textViewAttrString == attributedText
+        // Ensure references are set (in case view was recreated)
+        let wasNewlySet = textViewRef?.wrappedValue != textView
+        if wasNewlySet {
+            textViewRef?.wrappedValue = textView
+        }
+        if let textStorage = context.coordinator.textStorage, textStorageRef?.wrappedValue != textStorage {
+            textStorageRef?.wrappedValue = textStorage
+        }
         
-        if !areEqual {            
-            let selectedRanges = textView.selectedRanges
-
-            textView.textStorage?.setAttributedString(attributedText)
-
-            // Restore selection, clamping to valid range
-            let maxLocation = textView.textStorage?.length ?? 0
-            let restoredRanges = selectedRanges.compactMap { rangeValue -> NSValue? in
-                let range = rangeValue.rangeValue
-                if range.location <= maxLocation {
-                    let clampedLength = min(range.length, maxLocation - range.location)
-                    return NSValue(range: NSRange(location: range.location, length: clampedLength))
-                }
-                return nil
-            }
-
-            if !restoredRanges.isEmpty {
-                textView.setSelectedRanges(restoredRanges, affinity: .downstream, stillSelecting: false)
+        // Call callback if textView was newly set
+        if wasNewlySet {
+            DispatchQueue.main.async {
+                onTextViewReady?(textView)
             }
         }
+        
+    //     let textViewAttrString = textView.attributedString()
+    //     let areEqual = textViewAttrString == attributedText
+        
+    //     if !areEqual {            
+    //         let selectedRanges = textView.selectedRanges
+
+    //         let commonPrefixEnd = getCommonPrefix(a: textViewAttrString, b: attributedText)
+    //         let oldSuffixRange = NSRange(location: commonPrefixEnd.location, length: textViewAttrString.length - commonPrefixEnd.length)
+    //         let oldSuffix = textViewAttrString.attributedSubstring(from: oldSuffixRange)
+    //         let newSuffixRange = NSRange(location: commonPrefixEnd.location, length: attributedText.length - commonPrefixEnd.length)
+    //         let newSuffix = attributedText.attributedSubstring(from: newSuffixRange)
+
+    //         let provenanceTextStorage = textView.textStorage as? ProvenanceTrackingTextStorage
+    //         let backingStore = provenanceTextStorage?.backingStore
+
+    //         print("oldSuffix: \(oldSuffix.string)")
+    //         print("newSuffix: \(newSuffix.string)")           
+            
+    //         provenanceTextStorage?.replaceCharacters(in: oldSuffixRange, with: newSuffix)
+    //         newSuffix.enumerateAttribute(.transcriptLineMetadata, in: newSuffixRange, options: []) { value, range, _ in
+    //            if let data = value as? Data, let metadata = decodeMetadata(data) {
+    //                print("updateNSView: adding metadata: \(metadata) at range: \(NSRange(location: range.location + commonPrefixEnd.length, length: range.length))")
+    //                provenanceTextStorage?.addAttribute(.transcriptLineMetadata, value: data, range: NSRange(location: range.location + commonPrefixEnd.location, length: range.length))
+    //            }
+    //         }
+    //         let editFlags = NSTextStorageEditActions(rawValue: NSTextStorageEditActions.editedAttributes.rawValue | NSTextStorageEditActions.editedCharacters.rawValue)
+    //         provenanceTextStorage?.edited(editFlags, range: oldSuffixRange, changeInLength: newSuffix.length - oldSuffixRange.length)
+            
+    //         // textView.textStorage?.setAttributedString(attributedText)
+
+    //         // Restore selection, clamping to valid range
+    //         let maxLocation = textView.textStorage?.length ?? 0
+    //         let restoredRanges = selectedRanges.compactMap { rangeValue -> NSValue? in
+    //             let range = rangeValue.rangeValue
+    //             if range.location <= maxLocation {
+    //                 let clampedLength = min(range.length, maxLocation - range.location)
+    //                 return NSValue(range: NSRange(location: range.location, length: clampedLength))
+    //             }
+    //             return nil
+    //         }
+
+    //         if !restoredRanges.isEmpty {
+    //             textView.setSelectedRanges(restoredRanges, affinity: .downstream, stillSelecting: false)
+    //         }
+    //     }
     }
 }
 
@@ -511,4 +561,36 @@ func mergeAdjacentSegments(_ segments: [TranscriptTextSegment]) -> [TranscriptTe
     result.append(current)
     
     return result
+}
+
+func getCommonPrefix(a: NSAttributedString, b: NSAttributedString) -> NSRange {
+    let aString: String = a.string
+    let bString: String = b.string
+    let shortestLength = min(aString.count, bString.count)
+            
+    for i in 0..<shortestLength {
+        let aAttributes = a.attributes(at: i, effectiveRange: nil)
+        let bAttributes = b.attributes(at: i, effectiveRange: nil)
+        var attributesEqual: Bool {
+            if aAttributes.count != bAttributes.count { return false }
+            for (key, value) in aAttributes {
+                guard let bValue = bAttributes[key] as? NSObject else { return false }
+                if !(value is NSNull) {
+                    if let stringValue = value as? String, let bStringValue = bValue as? String {
+                        if stringValue != bStringValue {
+                            return false
+                        }
+                    }
+                }
+            }
+            return true
+        }
+        let aIndex = aString.index(aString.startIndex, offsetBy: i)
+        let bIndex = bString.index(bString.startIndex, offsetBy: i)
+        if aString[aIndex] != bString[bIndex] || !attributesEqual {
+            print("length: \(i), aString: \(aString[aIndex]), bString: \(bString[bIndex]), aAttributes: \(aAttributes), bAttributes: \(bAttributes)")
+            return NSRange(location: 0, length: i)
+        }
+    }
+    return NSRange(location: 0, length: shortestLength)
 }

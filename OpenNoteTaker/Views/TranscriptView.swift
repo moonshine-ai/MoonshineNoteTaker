@@ -24,18 +24,30 @@ let defaultFontSize: Double = 13.0
 /// A view that displays transcript text in an editable TextEditor.
 struct TranscriptView: View {
     @ObservedObject var document: TranscriptDocument
-    @State private var attributedText: NSAttributedString = NSAttributedString()
     @State private var selectionRange: NSRange? = nil
     @State private var isUpdatingFromDocument = false
+    @State private var provenanceTextView: ProvenanceTextView? = nil
+    @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
     @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
     @EnvironmentObject var zoomHandler: ZoomHandler
     var onFileDrag: ((NSDraggingInfo) -> Bool)?
     
     var body: some View {
-        ProvenanceTrackingTextEditor(attributedText: $attributedText, selectionRange: $selectionRange, fontSize: fontSize, onFileDrag: onFileDrag)
+        ProvenanceTrackingTextEditor(
+            selectionRange: $selectionRange,
+            fontSize: fontSize,
+            onFileDrag: onFileDrag,
+            textViewRef: $provenanceTextView,
+            textStorageRef: $provenanceTextStorage,
+            onTextViewReady: { textView in
+                // Initialize text content from document when textView is ready
+                let segments = document.getViewSegments()
+                let attributedText = makeAttributedString(from: segments, playingLineIds: document.playingLineIds, fontSize: fontSize)
+                textView.textStorage?.setAttributedString(attributedText)
+            })
             .font(.body)
             .padding(.top, 4)
-            .onChange(of: attributedText) { oldValue, newValue in
+            .onChange(of: provenanceTextStorage?.backingStore ?? NSMutableAttributedString()) { oldValue, newValue in
                 // Only update document if this change didn't come from a document update
                 if !isUpdatingFromDocument {
                     updateDocumentFromAttributedText(newValue)
@@ -53,20 +65,18 @@ struct TranscriptView: View {
             .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
                 updateAttributedTextFromDocument()
             }
-            .onChange(of: selectionRange) { oldRange, newRange in
-                var selectedLineIds: [UInt64] = []
-                attributedText.enumerateAttribute(.transcriptLineMetadata, in: newRange!, options: []) { value, range, _ in
-                    if let data = value as? Data, let metadata = decodeMetadata(data) {
-                        selectedLineIds.append(metadata.lineId)
-                    }
-                }
-                document.setPlaybackRangeFromLineIds(lineIds: selectedLineIds)
-            }
+//            .onChange(of: selectionRange) { oldRange, newRange in
+//                var selectedLineIds: [UInt64] = []
+//                var textStorage: ProvenanceTrackingTextStorage? = provenanceTextView?.textStorage ?? ProvenanceTrackingTextStorage()
+//                let attributedText: NSAttributedString = provenanceTextView?.textStorage?.backingStore ?? NSAttributedString()
+//                attributedText.enumerateAttribute(.transcriptLineMetadata, in: newRange!, options: []) { value, range, _ in
+//                    if let data = value as? Data, let metadata = decodeMetadata(data) {
+//                        selectedLineIds.append(metadata.lineId)
+//                    }
+//                }
+//                document.setPlaybackRangeFromLineIds(lineIds: selectedLineIds)
+//            }
             .onAppear {
-                // Initialize text content from document
-                let segments = document.getViewSegments()
-                attributedText = makeAttributedString(from: segments, playingLineIds: document.playingLineIds, fontSize: fontSize)
-                
                 // Register zoom handlers
                 zoomHandler.zoomIn = { self.zoomIn() }
                 zoomHandler.zoomOut = { self.zoomOut() }
@@ -101,19 +111,21 @@ struct TranscriptView: View {
         // Prevent circular updates
         guard !isUpdatingFromDocument else { return }
         
+        let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
+
+        let oldAttributedText = provenanceTextStorage?.backingStore ?? NSAttributedString()
+        
         let documentSegments = document.getViewSegments()
         let newAttributedText = makeAttributedString(from: documentSegments, playingLineIds: document.playingLineIds, fontSize: fontSize)
         
         // Compare with current attributed text to avoid unnecessary updates
         // This prevents circular updates when the content is already in sync
-        guard attributedText != newAttributedText else { return }
+        guard oldAttributedText != newAttributedText else { return }
         
         // Set flag before updating to prevent onChange(of: attributedText) from firing
         isUpdatingFromDocument = true
-        attributedText = newAttributedText
+        provenanceTextView?.textStorage?.setAttributedString(newAttributedText)
         
-        // Reset flag after SwiftUI has processed the change
-        // Use Task to ensure this happens on the next run loop, but without a fixed delay
         Task { @MainActor in
             isUpdatingFromDocument = false
         }
