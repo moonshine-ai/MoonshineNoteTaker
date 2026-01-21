@@ -308,7 +308,6 @@ class AutoScrollView: NSScrollView {
     let docBottom = (scrollY + visibleHeight)
     let scrollBottomZone = contentHeight - tolerance
     let result = (docBottom >= scrollBottomZone)
-    print("isAtBottom: \(result), docBottom: \(docBottom), scrollBottomZone: \(scrollBottomZone)")
     return result
   }
 }
