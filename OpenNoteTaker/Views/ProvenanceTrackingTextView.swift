@@ -326,7 +326,6 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
   class Coordinator {
     var textView: ProvenanceTextView?
     var textStorage: ProvenanceTrackingTextStorage?
-
   }
 
   func makeCoordinator() -> Coordinator {

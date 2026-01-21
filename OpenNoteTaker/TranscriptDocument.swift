@@ -104,7 +104,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   private var reachedEnd: Bool = false
   public var blockPlaybackRangeUpdates: Bool = false
 
-  public var lineIdsNeedingRendering: [UInt64: Bool] = [:]
+  @Published var lineIdsNeedingRendering: [UInt64: Bool] = [:]
 
   /// Thread-safe cached snapshot for background thread access during saves
   private nonisolated(unsafe) var cachedSnapshot: DocumentData?

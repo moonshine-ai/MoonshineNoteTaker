@@ -40,30 +40,15 @@ struct TranscriptView: View {
       textViewRef: $provenanceTextView,
       textStorageRef: $provenanceTextStorage,
       onTextViewReady: { textView in
-        // Initialize text content from document when textView is ready
-        let segments = document.getViewSegments()
-        let attributedText = makeAttributedString(
-          from: segments, playingLineIds: document.playingLineIds, fontSize: fontSize)
-        textView.textStorage?.setAttributedString(attributedText)
+        updateAttributedTextFromDocument()
       }
     )
     .font(.body)
     .padding(.top, 4)
-    .onChange(of: provenanceTextStorage?.backingStore ?? NSMutableAttributedString()) {
-      oldValue, newValue in
-      // Only update document if this change didn't come from a document update
-      if !isUpdatingFromDocument {
-        updateDocumentFromAttributedText(newValue)
-      }
-    }
-    .onChange(of: document.lines) { oldLines, newLines in
-      updateAttributedTextFromDocument()
-    }
-    .onChange(of: document.lines.last?.id) { oldId, newId in
-      updateAttributedTextFromDocument()
-    }
-    .onChange(of: document.lines.last?.text) { oldText, newText in
-      updateAttributedTextFromDocument()
+    .onChange(of: document.lineIdsNeedingRendering) {
+        if !isUpdatingFromDocument {
+          updateAttributedTextFromDocument()
+        }
     }
     .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
       updateAttributedTextFromDocument()
@@ -102,9 +87,10 @@ struct TranscriptView: View {
     // Prevent circular updates
     guard !isUpdatingFromDocument else { return }
 
+    isUpdatingFromDocument = true
     let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
 
-    var lastUpdatedRange: NSRange? = nil
+    let lastUpdatedRange: NSRange? = nil
     for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
       var oldRange: NSRange = NSRange(location: provenanceTextStorage?.length ?? 0, length: 0)
       provenanceTextStorage?.enumerateAttribute(
@@ -122,48 +108,18 @@ struct TranscriptView: View {
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
       if oldRange.length > 0 {
         provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
-          provenanceTextStorage?.setAttributes(
-            [.transcriptLineMetadata : metadata],
-            range: newRange)
+        provenanceTextStorage?.setAttributes(
+          [.transcriptLineMetadata: metadata],
+          range: newRange)
       } else {
-          var newString: NSMutableAttributedString = NSMutableAttributedString(string: line.text)
-          newString.addAttributes([.transcriptLineMetadata : metadata], range: NSRange(location: 0, length: line.text.count))
-            
+        let newString: NSMutableAttributedString = NSMutableAttributedString(string: line.text)
+        newString.addAttributes(
+          [.transcriptLineMetadata: metadata], range: NSRange(location: 0, length: line.text.count))
+
         provenanceTextStorage?.insert(newString, at: oldRange.location)
       }
       document.lineIdsNeedingRendering[line.id] = false
     }
-
-    // let oldAttributedText = provenanceTextStorage?.backingStore ?? NSAttributedString()
-
-    // let documentSegments = document.getViewSegments()
-    // let newAttributedText = makeAttributedString(
-    //   from: documentSegments, playingLineIds: document.playingLineIds, fontSize: fontSize)
-
-    // // Compare with current attributed text to avoid unnecessary updates
-    // // This prevents circular updates when the content is already in sync
-    // guard oldAttributedText != newAttributedText else { return }
-
-    // let commonPrefixRange = getCommonPrefix(a: oldAttributedText, b: newAttributedText)
-    // let commonPrefixLength = commonPrefixRange.length
-    // let oldSuffixLength = oldAttributedText.length - commonPrefixLength
-    // let oldSuffixRange = NSRange(location: commonPrefixLength, length: oldSuffixLength)
-    // let oldSuffix = oldAttributedText.attributedSubstring(from: oldSuffixRange)
-    // let newSuffixLength = newAttributedText.length - commonPrefixLength
-    // let newSuffixRange = NSRange(location: commonPrefixLength, length: newSuffixLength)
-    // let newSuffix = newAttributedText.attributedSubstring(from: newSuffixRange)
-
-    // // Set flag before updating to prevent onChange(of: attributedText) from firing
-    // isUpdatingFromDocument = true
-    // provenanceTextStorage?.replaceCharacters(in: oldSuffixRange, with: newSuffix)
-    // newAttributedText.enumerateAttribute(.transcriptLineMetadata, in: newSuffixRange, options: []) {
-    //   value, range, _ in
-    //   if let data = value as? Data, let metadata = decodeMetadata(data) {
-    //     provenanceTextStorage?.addAttribute(
-    //       .transcriptLineMetadata, value: data,
-    //       range: NSRange(location: range.location, length: range.length))
-    //   }
-    // }
 
     if let autoScrollView: AutoScrollView? = provenanceTextView?.enclosingScrollView
       as? AutoScrollView ?? nil, lastUpdatedRange != nil
@@ -172,10 +128,7 @@ struct TranscriptView: View {
         provenanceTextView?.scrollRangeToVisible(lastUpdatedRange!)
       }
     }
-
-    Task { @MainActor in
-      isUpdatingFromDocument = false
-    }
+    isUpdatingFromDocument = false
   }
 
   /// Compare two segment arrays to determine if they differ.
