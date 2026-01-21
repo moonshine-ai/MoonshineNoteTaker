@@ -122,9 +122,23 @@ struct TranscriptView: View {
         // This prevents circular updates when the content is already in sync
         guard oldAttributedText != newAttributedText else { return }
         
+        let commonPrefixRange = getCommonPrefix(a: oldAttributedText, b: newAttributedText)
+        let commonPrefixLength = commonPrefixRange.length
+        let oldSuffixLength = oldAttributedText.length - commonPrefixLength
+        let oldSuffixRange = NSRange(location: commonPrefixLength, length: oldSuffixLength)
+        let oldSuffix = oldAttributedText.attributedSubstring(from: oldSuffixRange)
+        let newSuffixLength = newAttributedText.length - commonPrefixLength
+        let newSuffixRange = NSRange(location: commonPrefixLength, length: newSuffixLength)
+        let newSuffix = newAttributedText.attributedSubstring(from: newSuffixRange)
+
         // Set flag before updating to prevent onChange(of: attributedText) from firing
         isUpdatingFromDocument = true
-        provenanceTextView?.textStorage?.setAttributedString(newAttributedText)
+        provenanceTextStorage?.replaceCharacters(in: oldSuffixRange, with: newSuffix)
+        newAttributedText.enumerateAttribute(.transcriptLineMetadata, in: newSuffixRange, options: []) { value, range, _ in
+            if let data = value as? Data, let metadata = decodeMetadata(data) {
+                provenanceTextStorage?.addAttribute(.transcriptLineMetadata, value: data, range: NSRange(location: range.location, length: range.length))
+            }
+        }
         
         Task { @MainActor in
             isUpdatingFromDocument = false

@@ -431,68 +431,6 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = context.coordinator.textView else { return }
-        
-        // Ensure references are set (in case view was recreated)
-        let wasNewlySet = textViewRef?.wrappedValue != textView
-        if wasNewlySet {
-            textViewRef?.wrappedValue = textView
-        }
-        if let textStorage = context.coordinator.textStorage, textStorageRef?.wrappedValue != textStorage {
-            textStorageRef?.wrappedValue = textStorage
-        }
-        
-        // Call callback if textView was newly set
-        if wasNewlySet {
-            DispatchQueue.main.async {
-                onTextViewReady?(textView)
-            }
-        }
-        
-    //     let textViewAttrString = textView.attributedString()
-    //     let areEqual = textViewAttrString == attributedText
-        
-    //     if !areEqual {            
-    //         let selectedRanges = textView.selectedRanges
-
-    //         let commonPrefixEnd = getCommonPrefix(a: textViewAttrString, b: attributedText)
-    //         let oldSuffixRange = NSRange(location: commonPrefixEnd.location, length: textViewAttrString.length - commonPrefixEnd.length)
-    //         let oldSuffix = textViewAttrString.attributedSubstring(from: oldSuffixRange)
-    //         let newSuffixRange = NSRange(location: commonPrefixEnd.location, length: attributedText.length - commonPrefixEnd.length)
-    //         let newSuffix = attributedText.attributedSubstring(from: newSuffixRange)
-
-    //         let provenanceTextStorage = textView.textStorage as? ProvenanceTrackingTextStorage
-    //         let backingStore = provenanceTextStorage?.backingStore
-
-    //         print("oldSuffix: \(oldSuffix.string)")
-    //         print("newSuffix: \(newSuffix.string)")           
-            
-    //         provenanceTextStorage?.replaceCharacters(in: oldSuffixRange, with: newSuffix)
-    //         newSuffix.enumerateAttribute(.transcriptLineMetadata, in: newSuffixRange, options: []) { value, range, _ in
-    //            if let data = value as? Data, let metadata = decodeMetadata(data) {
-    //                print("updateNSView: adding metadata: \(metadata) at range: \(NSRange(location: range.location + commonPrefixEnd.length, length: range.length))")
-    //                provenanceTextStorage?.addAttribute(.transcriptLineMetadata, value: data, range: NSRange(location: range.location + commonPrefixEnd.location, length: range.length))
-    //            }
-    //         }
-    //         let editFlags = NSTextStorageEditActions(rawValue: NSTextStorageEditActions.editedAttributes.rawValue | NSTextStorageEditActions.editedCharacters.rawValue)
-    //         provenanceTextStorage?.edited(editFlags, range: oldSuffixRange, changeInLength: newSuffix.length - oldSuffixRange.length)
-            
-    //         // textView.textStorage?.setAttributedString(attributedText)
-
-    //         // Restore selection, clamping to valid range
-    //         let maxLocation = textView.textStorage?.length ?? 0
-    //         let restoredRanges = selectedRanges.compactMap { rangeValue -> NSValue? in
-    //             let range = rangeValue.rangeValue
-    //             if range.location <= maxLocation {
-    //                 let clampedLength = min(range.length, maxLocation - range.location)
-    //                 return NSValue(range: NSRange(location: range.location, length: clampedLength))
-    //             }
-    //             return nil
-    //         }
-
-    //         if !restoredRanges.isEmpty {
-    //             textView.setSelectedRanges(restoredRanges, affinity: .downstream, stillSelecting: false)
-    //         }
-    //     }
     }
 }
 
