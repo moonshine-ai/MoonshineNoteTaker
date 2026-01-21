@@ -1,534 +1,490 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - Data Model
 
 struct TranscriptLineMetadata: Codable, Equatable {
-    let lineId: UInt64
-    var userEdited: Bool
-    
-    /// Create a user-edited copy of this metadata
-    func asUserEdited() -> TranscriptLineMetadata {
-        var copy = self
-        copy.userEdited = true
-        return copy
-    }
+  let lineId: UInt64
+  var userEdited: Bool
+
+  /// Create a user-edited copy of this metadata
+  func asUserEdited() -> TranscriptLineMetadata {
+    var copy = self
+    copy.userEdited = true
+    return copy
+  }
 }
 
 // MARK: - Custom Attribute Key
 
 extension NSAttributedString.Key {
-    static let transcriptLineMetadata = NSAttributedString.Key("ai.moonshine.opennotetaker.transcriptLineMetadata")
+  static let transcriptLineMetadata = NSAttributedString.Key(
+    "ai.moonshine.opennotetaker.transcriptLineMetadata")
 }
 
 // MARK: - Transcript Segment (Input/Output)
 
 struct TranscriptTextSegment {
-    let text: String
-    let metadata: TranscriptLineMetadata
+  let text: String
+  let metadata: TranscriptLineMetadata
 }
 
 // MARK: - Metadata Encoding Helpers
 
 func encodeMetadata(_ metadata: TranscriptLineMetadata) -> Data? {
-    try? JSONEncoder().encode(metadata)
+  try? JSONEncoder().encode(metadata)
 }
 
 func decodeMetadata(_ data: Data) -> TranscriptLineMetadata? {
-    try? JSONDecoder().decode(TranscriptLineMetadata.self, from: data)
+  try? JSONDecoder().decode(TranscriptLineMetadata.self, from: data)
 }
 
 func getMetadata(from attrs: [NSAttributedString.Key: Any]) -> TranscriptLineMetadata? {
-    guard let data = attrs[.transcriptLineMetadata] as? Data else { return nil }
-    return decodeMetadata(data)
+  guard let data = attrs[.transcriptLineMetadata] as? Data else { return nil }
+  return decodeMetadata(data)
 }
 
 class ProvenanceTrackingTextStorage: NSTextStorage {
-    public let backingStore = NSMutableAttributedString()
-    private var isEditing = false
-    private var editedRangeStart: Int = 0
-    private var editedRangeEnd: Int = 0
-    
-    override var string: String {
-        backingStore.string
+  public let backingStore = NSMutableAttributedString()
+  private var isEditing = false
+  private var editedRangeStart: Int = 0
+  private var editedRangeEnd: Int = 0
+
+  override var string: String {
+    backingStore.string
+  }
+
+  override func attributes(at location: Int, effectiveRange range: NSRangePointer?)
+    -> [NSAttributedString.Key: Any]
+  {
+    let attrs = backingStore.attributes(at: location, effectiveRange: range)
+    return attrs
+  }
+
+  override func replaceCharacters(in range: NSRange, with str: String) {
+    let delta = str.utf16.count - range.length
+
+    // Get metadata to apply to new text (from the position being edited)
+    let metadataForInsertion = getMetadataForInsertion(at: range)
+
+    beginEditing()
+    backingStore.replaceCharacters(in: range, with: str)
+
+    // Apply metadata to the newly inserted text, marked as user-edited
+    if str.count > 0, let sourceMeta = metadataForInsertion {
+      let insertedRange = NSRange(location: range.location, length: str.utf16.count)
+      let editedMeta = sourceMeta.asUserEdited()
+      if let encoded = encodeMetadata(editedMeta) {
+        backingStore.addAttribute(.transcriptLineMetadata, value: encoded, range: insertedRange)
+      }
     }
-    
-    override func attributes(at location: Int, effectiveRange range: NSRangePointer?) -> [NSAttributedString.Key: Any] {
-        let attrs = backingStore.attributes(at: location, effectiveRange: range)
-        return attrs
+
+    edited(.editedCharacters, range: range, changeInLength: delta)
+
+    endEditing()
+  }
+
+  override func setAttributes(_ attrs: [NSAttributedString.Key: Any]?, range: NSRange) {
+    // Preserve existing custom metadata attribute when NSTextView applies default formatting
+    // Only preserve if attrs is provided (not nil) but doesn't include metadata
+    // If attrs is nil, that's an explicit clear, so we respect that
+    var mergedAttrs: [NSAttributedString.Key: Any]? = attrs
+
+    if let attrs = attrs {
+      // attrs is provided - check if we need to preserve existing metadata
+      if range.location < backingStore.length {
+        let checkRange = NSRange(
+          location: range.location, length: min(range.length, backingStore.length - range.location))
+        let attrsBefore = backingStore.attributes(at: checkRange.location, effectiveRange: nil)
+
+        // If metadata exists and isn't being explicitly set in new attrs, preserve it
+        if let existingMetadataData = attrsBefore[.transcriptLineMetadata] as? Data {
+          if attrs[.transcriptLineMetadata] == nil {
+            // New attrs don't include metadata, preserve existing
+            var mutableAttrs = attrs  // Create mutable copy
+            mutableAttrs[.transcriptLineMetadata] = existingMetadataData
+            mergedAttrs = mutableAttrs
+          }
+        }
+      }
     }
-    
-    override func replaceCharacters(in range: NSRange, with str: String) {
-        let delta = str.utf16.count - range.length
-        
-        // Get metadata to apply to new text (from the position being edited)
-        let metadataForInsertion = getMetadataForInsertion(at: range)
-        
-        beginEditing()
-        backingStore.replaceCharacters(in: range, with: str)
-        
-        // Apply metadata to the newly inserted text, marked as user-edited
-        if str.count > 0, let sourceMeta = metadataForInsertion {
-            let insertedRange = NSRange(location: range.location, length: str.utf16.count)
-            let editedMeta = sourceMeta.asUserEdited()
-            if let encoded = encodeMetadata(editedMeta) {
-                backingStore.addAttribute(.transcriptLineMetadata, value: encoded, range: insertedRange)
-            }
-        }
-                
-        edited(.editedCharacters, range: range, changeInLength: delta)
-        
-        endEditing()
+
+    beginEditing()
+    // Apply merged attributes that include preserved metadata (or nil if clearing)
+    backingStore.setAttributes(mergedAttrs, range: range)
+
+    edited(.editedAttributes, range: range, changeInLength: 0)
+    endEditing()
+  }
+
+  private func getMetadataForInsertion(at range: NSRange) -> TranscriptLineMetadata? {
+    guard backingStore.length > 0 else { return nil }
+
+    // Prefer metadata from the character before the insertion point
+    if range.location > 0 {
+      let attrs = backingStore.attributes(at: range.location - 1, effectiveRange: nil)
+      if let meta = getMetadata(from: attrs) {
+        return meta
+      }
     }
-    
-    override func setAttributes(_ attrs: [NSAttributedString.Key: Any]?, range: NSRange) {
-        // Preserve existing custom metadata attribute when NSTextView applies default formatting
-        // Only preserve if attrs is provided (not nil) but doesn't include metadata
-        // If attrs is nil, that's an explicit clear, so we respect that
-        var mergedAttrs: [NSAttributedString.Key: Any]? = attrs
-        
-        if let attrs = attrs {
-            // attrs is provided - check if we need to preserve existing metadata
-            if range.location < backingStore.length {
-                let checkRange = NSRange(location: range.location, length: min(range.length, backingStore.length - range.location))
-                let attrsBefore = backingStore.attributes(at: checkRange.location, effectiveRange: nil)
-                
-                // If metadata exists and isn't being explicitly set in new attrs, preserve it
-                if let existingMetadataData = attrsBefore[.transcriptLineMetadata] as? Data {
-                    if attrs[.transcriptLineMetadata] == nil {
-                        // New attrs don't include metadata, preserve existing
-                        var mutableAttrs = attrs  // Create mutable copy
-                        mutableAttrs[.transcriptLineMetadata] = existingMetadataData
-                        mergedAttrs = mutableAttrs
-                    }
-                }
-            }
-        }
-        
-        beginEditing()
-        // Apply merged attributes that include preserved metadata (or nil if clearing)
-        backingStore.setAttributes(mergedAttrs, range: range)
-                
-        edited(.editedAttributes, range: range, changeInLength: 0)
-        endEditing()
+
+    // Fall back to character at/after insertion point
+    if range.location < backingStore.length {
+      let checkLocation = min(range.location, backingStore.length - 1)
+      let attrs = backingStore.attributes(at: checkLocation, effectiveRange: nil)
+      if let meta = getMetadata(from: attrs) {
+        return meta
+      }
     }
-    
-    private func getMetadataForInsertion(at range: NSRange) -> TranscriptLineMetadata? {
-        guard backingStore.length > 0 else { return nil }
-        
-        // Prefer metadata from the character before the insertion point
-        if range.location > 0 {
-            let attrs = backingStore.attributes(at: range.location - 1, effectiveRange: nil)
-            if let meta = getMetadata(from: attrs) {
-                return meta
-            }
-        }
-        
-        // Fall back to character at/after insertion point
-        if range.location < backingStore.length {
-            let checkLocation = min(range.location, backingStore.length - 1)
-            let attrs = backingStore.attributes(at: checkLocation, effectiveRange: nil)
-            if let meta = getMetadata(from: attrs) {
-                return meta
-            }
-        }
-        
-        // If replacing existing text, get metadata from what's being replaced
-        if range.length > 0 && range.location < backingStore.length {
-            let attrs = backingStore.attributes(at: range.location, effectiveRange: nil)
-            if let meta = getMetadata(from: attrs) {
-                return meta
-            }
-        }
-        
-        return nil
+
+    // If replacing existing text, get metadata from what's being replaced
+    if range.length > 0 && range.location < backingStore.length {
+      let attrs = backingStore.attributes(at: range.location, effectiveRange: nil)
+      if let meta = getMetadata(from: attrs) {
+        return meta
+      }
     }
+
+    return nil
+  }
 }
 
 // MARK: - Text View with Custom Storage
 
 class ProvenanceTextView: NSTextView {
-    var onTextChange: ((NSAttributedString) -> Void)?
-    var onSelectionChange: ((NSRange) -> Void)?
-    var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
-    private let bottomPadding: CGFloat = 50
-    
-    convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
-        let layoutManager = NSLayoutManager()
-        textStorage.addLayoutManager(layoutManager)
-        
-        let textContainer = NSTextContainer(containerSize: NSSize(width: frame.width, height: .greatestFiniteMagnitude))
-        textContainer.widthTracksTextView = true
-        textContainer.heightTracksTextView = false
-        layoutManager.addTextContainer(textContainer)
+  var onTextChange: ((NSAttributedString) -> Void)?
+  var onSelectionChange: ((NSRange) -> Void)?
+  var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
+  private let bottomPadding: CGFloat = 50
 
-        self.init(frame: frame, textContainer: textContainer)
+  convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
+    let layoutManager = NSLayoutManager()
+    textStorage.addLayoutManager(layoutManager)
 
-        self.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+    let textContainer = NSTextContainer(
+      containerSize: NSSize(width: frame.width, height: .greatestFiniteMagnitude))
+    textContainer.widthTracksTextView = true
+    textContainer.heightTracksTextView = false
+    layoutManager.addTextContainer(textContainer)
 
-        // Set up to expand vertically
-        self.isVerticallyResizable = true
-        self.isHorizontallyResizable = false
-        self.textContainerInset = NSSize(width: 0, height: 0)
-        
-        // Unregister all drag types so file drops pass through to SwiftUI handler
-        // NSTextView automatically registers for file URLs and text, which interferes with SwiftUI's .onDrop
-        self.unregisterDraggedTypes()
-    }
-    
-    // Override drag methods to forward file drags to SwiftUI via callback
-    private func isFileDrag(_ sender: NSDraggingInfo) -> Bool {
-        let pasteboard = sender.draggingPasteboard
-        return pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
-    }
-    
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        // If it's a file drag and we have a callback, indicate we might accept it
-        // but we'll actually handle it in performDragOperation
-        if isFileDrag(sender), onFileDrag != nil {
-            return .copy  // Return a valid operation so the drag continues
-        }
-        // For non-file drags, don't handle (we unregistered all types)
-        return []
-    }
-    
-    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        // Same as draggingEntered
-        if isFileDrag(sender), onFileDrag != nil {
-            return .copy
-        }
-        return []
-    }
-    
-    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        // If it's a file drag, call the callback to let SwiftUI handle it
-        if isFileDrag(sender), let callback = onFileDrag {
-            return callback(sender)
-        }
-        // Never perform drag operation for non-files
-        return false
-    }
-    
-    // Override pasteboard reading to prevent file URLs from being inserted as text
-    override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
-        // Check if this is a file URL pasteboard type
-        if pboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
-            // Don't read file URLs - let SwiftUI handle them
-            return false
-        }
-        // For other types, also don't read (we don't want drag and drop)
-        return false
-    }
-    
-    override func didChangeText() {
-        super.didChangeText()
-        
-        // Adjust frame to include bottom padding
-        adjustFrameForBottomPadding()
-        
-        // Create a copy so SwiftUI sees it as a new object
-        let attrString = attributedString()
-                
-        let copy = NSMutableAttributedString(attributedString: attrString)
-        onTextChange?(copy)
-    }
+    self.init(frame: frame, textContainer: textContainer)
 
-    override func setSelectedRange(_ charRange: NSRange, affinity: NSSelectionAffinity, stillSelecting: Bool) {
-        super.setSelectedRange(charRange, affinity: affinity, stillSelecting: stillSelecting)
-        if !stillSelecting {
-            onSelectionChange?(charRange)
-        }
-    }
-    
-    override func layout() {
-        super.layout()
-        DispatchQueue.main.async { [weak self] in
-            self?.adjustFrameForBottomPadding()
-        }
-    }
+    self.maxSize = NSSize(
+      width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
 
-    private func adjustFrameForBottomPadding() {
-        guard let textContainer = self.textContainer,
-              let layoutManager = textContainer.layoutManager else { return }
-        
-        // Calculate the actual content height
-        let usedRect = layoutManager.usedRect(for: textContainer)
-        let contentHeight = usedRect.height
-        
-        // Set frame height to content height + bottom padding
-        let newHeight = contentHeight + bottomPadding
-        if abs(frame.height - newHeight) > 0.1 {
-            setFrameSize(NSSize(width: frame.width, height: newHeight))
-        }
+    // Set up to expand vertically
+    self.isVerticallyResizable = true
+    self.isHorizontallyResizable = false
+    self.textContainerInset = NSSize(width: 0, height: 0)
+
+    // Unregister all drag types so file drops pass through to SwiftUI handler
+    // NSTextView automatically registers for file URLs and text, which interferes with SwiftUI's .onDrop
+    self.unregisterDraggedTypes()
+  }
+
+  // Override drag methods to forward file drags to SwiftUI via callback
+  private func isFileDrag(_ sender: NSDraggingInfo) -> Bool {
+    let pasteboard = sender.draggingPasteboard
+    return pasteboard.canReadObject(
+      forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+  }
+
+  override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+    // If it's a file drag and we have a callback, indicate we might accept it
+    // but we'll actually handle it in performDragOperation
+    if isFileDrag(sender), onFileDrag != nil {
+      return .copy  // Return a valid operation so the drag continues
     }
+    // For non-file drags, don't handle (we unregistered all types)
+    return []
+  }
+
+  override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+    // Same as draggingEntered
+    if isFileDrag(sender), onFileDrag != nil {
+      return .copy
+    }
+    return []
+  }
+
+  override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+    // If it's a file drag, call the callback to let SwiftUI handle it
+    if isFileDrag(sender), let callback = onFileDrag {
+      return callback(sender)
+    }
+    // Never perform drag operation for non-files
+    return false
+  }
+
+  // Override pasteboard reading to prevent file URLs from being inserted as text
+  override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool
+  {
+    // Check if this is a file URL pasteboard type
+    if pboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
+      // Don't read file URLs - let SwiftUI handle them
+      return false
+    }
+    // For other types, also don't read (we don't want drag and drop)
+    return false
+  }
+
+  override func didChangeText() {
+    super.didChangeText()
+
+    // Adjust frame to include bottom padding
+    adjustFrameForBottomPadding()
+
+    // Create a copy so SwiftUI sees it as a new object
+    let attrString = attributedString()
+
+    let copy = NSMutableAttributedString(attributedString: attrString)
+    onTextChange?(copy)
+  }
+
+  override func setSelectedRange(
+    _ charRange: NSRange, affinity: NSSelectionAffinity, stillSelecting: Bool
+  ) {
+    super.setSelectedRange(charRange, affinity: affinity, stillSelecting: stillSelecting)
+    if !stillSelecting {
+      onSelectionChange?(charRange)
+    }
+  }
+
+  override func layout() {
+    super.layout()
+    DispatchQueue.main.async { [weak self] in
+      self?.adjustFrameForBottomPadding()
+    }
+  }
+
+  private func adjustFrameForBottomPadding() {
+    guard let textContainer = self.textContainer,
+      let layoutManager = textContainer.layoutManager
+    else { return }
+
+    // Calculate the actual content height
+    let usedRect = layoutManager.usedRect(for: textContainer)
+    let contentHeight = usedRect.height
+
+    // Set frame height to content height + bottom padding
+    let newHeight = contentHeight + bottomPadding
+    if abs(frame.height - newHeight) > 0.1 {
+      setFrameSize(NSSize(width: frame.width, height: newHeight))
+    }
+  }
 }
 
 class AutoScrollView: NSScrollView {
-    
-    private var wasAtBottom = true
-    private var observerSetup = false
-    
-    override func awakeFromNib() {
-        super.awakeFromNib()
-    }
-    
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        // Unregister drag types so file drops pass through to SwiftUI
-        self.unregisterDraggedTypes()
-    }
-    
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        // Unregister drag types so file drops pass through to SwiftUI
-        self.unregisterDraggedTypes()
-    }
-    
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if !observerSetup {
-            setupObserver()
-            observerSetup = true
-        }
-    }
-    
-    // Override drag methods to prevent file handling
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        // Don't handle drags - let them pass through to SwiftUI
-        return []
-    }
-    
-    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        // Don't handle drags - let SwiftUI handle them
-        return false
-    }
-    
-    @MainActor
-    private func setupObserver() {
-        // Observe bounds changes on the content view (tracks scroll position)
-        contentView.postsBoundsChangedNotifications = true
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(contentViewBoundsDidChange),
-            name: NSView.boundsDidChangeNotification,
-            object: contentView
-        )
-    }
-    
-    override var documentView: NSView? {
-        didSet {
-            guard let docView = documentView else { return }
-            
-            // Observe frame changes on the document view (tracks content size)
-            docView.postsFrameChangedNotifications = true
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(documentViewFrameDidChange),
-                name: NSView.frameDidChangeNotification,
-                object: docView
-            )
-        }
-    }
-    
-    private var isAtBottom: Bool {
-        guard let docView = documentView else { return true }
-        let visibleHeight = contentView.bounds.height
-        let contentHeight = docView.frame.height
-        let scrollY = contentView.bounds.origin.y
-        
-        // Allow a small tolerance (e.g., 1 point)
-        return scrollY + visibleHeight >= contentHeight - 1
-    }
-    
-    @objc private func contentViewBoundsDidChange(_ notification: Notification) {
-        wasAtBottom = isAtBottom
-    }
-    
-    @objc private func documentViewFrameDidChange(_ notification: Notification) {
-        if wasAtBottom {
-            scrollToBottom()
-        }
-    }
-    
-    func scrollToBottom() {
-        guard let docView = documentView else { return }
-        let maxY = max(0, docView.frame.height - contentView.bounds.height)
-        contentView.scroll(to: NSPoint(x: 0, y: maxY))
-        reflectScrolledClipView(contentView)
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    // Unregister drag types so file drops pass through to SwiftUI
+    self.unregisterDraggedTypes()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    // Unregister drag types so file drops pass through to SwiftUI
+    self.unregisterDraggedTypes()
+  }
+
+  // Override drag methods to prevent file handling
+  override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+    // Don't handle drags - let them pass through to SwiftUI
+    return []
+  }
+
+  override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+    // Don't handle drags - let SwiftUI handle them
+    return false
+  }
+
+  public var isAtBottom: Bool {
+    guard let docView = documentView else { return true }
+    let visibleHeight = contentView.bounds.height
+    let contentHeight = docView.frame.height
+    let scrollY = contentView.bounds.origin.y
+
+    let tolerance = 100.0
+    let docBottom = (scrollY + visibleHeight)
+    let scrollBottomZone = contentHeight - tolerance
+    let result = (docBottom >= scrollBottomZone)
+    print("isAtBottom: \(result), docBottom: \(docBottom), scrollBottomZone: \(scrollBottomZone)")
+    return result
+  }
 }
 
 // MARK: - SwiftUI Wrapper
 
 struct ProvenanceTrackingTextEditor: NSViewRepresentable {
-    // @Binding var attributedText: NSAttributedString
-    @Binding var selectionRange: NSRange?
-    var fontSize: CGFloat
-    var onFileDrag: ((NSDraggingInfo) -> Bool)?
-    var textViewRef: Binding<ProvenanceTextView?>?
-    var textStorageRef: Binding<ProvenanceTrackingTextStorage?>?
-    var onTextViewReady: ((ProvenanceTextView) -> Void)?
-    
-    class Coordinator {
-        var textView: ProvenanceTextView?
-        var textStorage: ProvenanceTrackingTextStorage?
-        
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = AutoScrollView()
-        
-        // Create custom text storage
-        let textStorage = ProvenanceTrackingTextStorage()
-        let textView = ProvenanceTextView(frame: .zero, textStorage: textStorage)
-        
-        textView.isRichText = false
-        textView.allowsUndo = true
-        textView.isEditable = true
-        textView.isSelectable = true
-        
-        // Apply font size as default
-        textView.font = NSFont.systemFont(ofSize: fontSize)
-        
-        scrollView.documentView = textView
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
-        scrollView.autoresizingMask = [.width, .height]
+  // @Binding var attributedText: NSAttributedString
+  @Binding var selectionRange: NSRange?
+  var fontSize: CGFloat
+  var onFileDrag: ((NSDraggingInfo) -> Bool)?
+  var textViewRef: Binding<ProvenanceTextView?>?
+  var textStorageRef: Binding<ProvenanceTrackingTextStorage?>?
+  var onTextViewReady: ((ProvenanceTextView) -> Void)?
 
-        textView.autoresizingMask = [.width]
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        
-        textView.onSelectionChange = { newRange in
-            DispatchQueue.main.async {
-                self.selectionRange = newRange
-            }
-        }
-        textView.onFileDrag = onFileDrag
-        
-        // Store reference in coordinator
-        context.coordinator.textView = textView
-        context.coordinator.textStorage = textStorage
-        
-        // // Set binding asynchronously to avoid "modifying state during view update" warning
-         DispatchQueue.main.async {
-            textViewRef?.wrappedValue = textView
-            textStorageRef?.wrappedValue = textStorage
-            onTextViewReady?(textView)
-         }
-        
-        return scrollView
+  class Coordinator {
+    var textView: ProvenanceTextView?
+    var textStorage: ProvenanceTrackingTextStorage?
+
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator()
+  }
+
+  func makeNSView(context: Context) -> NSScrollView {
+    let scrollView = AutoScrollView()
+
+    // Create custom text storage
+    let textStorage = ProvenanceTrackingTextStorage()
+    let textView = ProvenanceTextView(frame: .zero, textStorage: textStorage)
+
+    textView.isRichText = false
+    textView.allowsUndo = true
+    textView.isEditable = true
+    textView.isSelectable = true
+
+    // Apply font size as default
+    textView.font = NSFont.systemFont(ofSize: fontSize)
+
+    scrollView.documentView = textView
+    scrollView.hasVerticalScroller = true
+    scrollView.hasHorizontalScroller = false
+    scrollView.autohidesScrollers = true
+    scrollView.autoresizingMask = [.width, .height]
+
+    textView.autoresizingMask = [.width]
+    textView.isVerticallyResizable = true
+    textView.isHorizontallyResizable = false
+
+    textView.onSelectionChange = { newRange in
+      DispatchQueue.main.async {
+        self.selectionRange = newRange
+      }
     }
-    
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = context.coordinator.textView else { return }
+    textView.onFileDrag = onFileDrag
+
+    // Store reference in coordinator
+    context.coordinator.textView = textView
+    context.coordinator.textStorage = textStorage
+
+    // // Set binding asynchronously to avoid "modifying state during view update" warning
+    DispatchQueue.main.async {
+      textViewRef?.wrappedValue = textView
+      textStorageRef?.wrappedValue = textStorage
+      onTextViewReady?(textView)
     }
+
+    return scrollView
+  }
+
+  func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    guard let textView = context.coordinator.textView else { return }
+  }
 }
 
 // MARK: - Helper Functions
 
-func makeAttributedString(from segments: [TranscriptTextSegment], playingLineIds: [UInt64], fontSize: CGFloat) -> NSAttributedString {
-    let result = NSMutableAttributedString()
-    let baseFont = NSFont.systemFont(ofSize: fontSize)
-    let boldFont = NSFont.boldSystemFont(ofSize: fontSize)
-    
-    for segment in segments {
-        guard let encoded = encodeMetadata(segment.metadata) else { continue }
-        var attrs: [NSMutableAttributedString.Key: Any] = [.transcriptLineMetadata: encoded]
-        if playingLineIds.contains(segment.metadata.lineId) {
-            attrs[.font] = boldFont
-        } else {
-            attrs[.font] = baseFont
-        }
-        let segmentStr = NSAttributedString(string: segment.text, attributes: attrs)
-        result.append(segmentStr)
+func makeAttributedString(
+  from segments: [TranscriptTextSegment], playingLineIds: [UInt64], fontSize: CGFloat
+) -> NSAttributedString {
+  let result = NSMutableAttributedString()
+  let baseFont = NSFont.systemFont(ofSize: fontSize)
+  let boldFont = NSFont.boldSystemFont(ofSize: fontSize)
+
+  for segment in segments {
+    guard let encoded = encodeMetadata(segment.metadata) else { continue }
+    var attrs: [NSMutableAttributedString.Key: Any] = [.transcriptLineMetadata: encoded]
+    if playingLineIds.contains(segment.metadata.lineId) {
+      attrs[.font] = boldFont
+    } else {
+      attrs[.font] = baseFont
     }
-    return result
+    let segmentStr = NSAttributedString(string: segment.text, attributes: attrs)
+    result.append(segmentStr)
+  }
+  return result
 }
 
 func printAttributedString(attributedString: NSAttributedString) {
-    attributedString.enumerateAttribute(.transcriptLineMetadata, in: NSRange(location: 0, length: attributedString.length), options: []) { value, range, _ in
-        let text = (attributedString.string as NSString).substring(with: range)
-        print("printAttributedString: value: \(String(describing: value)), range: \(range), text: \(text)")
-    }
+  attributedString.enumerateAttribute(
+    .transcriptLineMetadata, in: NSRange(location: 0, length: attributedString.length), options: []
+  ) { value, range, _ in
+    let text = (attributedString.string as NSString).substring(with: range)
+    print(
+      "printAttributedString: value: \(String(describing: value)), range: \(range), text: \(text)")
+  }
 }
 
 func extractSegments(from attributedString: NSAttributedString) -> [TranscriptTextSegment] {
-    var segments: [TranscriptTextSegment] = []
-    let fullRange = NSRange(location: 0, length: attributedString.length)
-    
-    attributedString.enumerateAttribute(.transcriptLineMetadata, in: fullRange, options: []) { value, range, _ in
-        let text = (attributedString.string as NSString).substring(with: range)
-        
-        if let data = value as? Data, let metadata = decodeMetadata(data) {
-            segments.append(TranscriptTextSegment(text: text, metadata: metadata))
-        }
+  var segments: [TranscriptTextSegment] = []
+  let fullRange = NSRange(location: 0, length: attributedString.length)
+
+  attributedString.enumerateAttribute(.transcriptLineMetadata, in: fullRange, options: []) {
+    value, range, _ in
+    let text = (attributedString.string as NSString).substring(with: range)
+
+    if let data = value as? Data, let metadata = decodeMetadata(data) {
+      segments.append(TranscriptTextSegment(text: text, metadata: metadata))
     }
-    
-    let result = mergeAdjacentSegments(segments)
-    return result
+  }
+
+  let result = mergeAdjacentSegments(segments)
+  return result
 }
 
 func mergeAdjacentSegments(_ segments: [TranscriptTextSegment]) -> [TranscriptTextSegment] {
-    guard !segments.isEmpty else { return [] }
-    
-    var result: [TranscriptTextSegment] = []
-    var current = segments[0]
-    
-    for segment in segments.dropFirst() {
-        // Merge if metadata is identical (same times, same edited status)
-        if current.metadata.lineId == segment.metadata.lineId {
-            current = TranscriptTextSegment(
-                text: current.text + segment.text,
-                metadata: current.metadata
-            )
-        } else {
-            result.append(current)
-            current = segment
-        }
+  guard !segments.isEmpty else { return [] }
+
+  var result: [TranscriptTextSegment] = []
+  var current = segments[0]
+
+  for segment in segments.dropFirst() {
+    // Merge if metadata is identical (same times, same edited status)
+    if current.metadata.lineId == segment.metadata.lineId {
+      current = TranscriptTextSegment(
+        text: current.text + segment.text,
+        metadata: current.metadata
+      )
+    } else {
+      result.append(current)
+      current = segment
     }
-    result.append(current)
-    
-    return result
+  }
+  result.append(current)
+
+  return result
 }
 
 func getCommonPrefix(a: NSAttributedString, b: NSAttributedString) -> NSRange {
-    let aString: String = a.string
-    let bString: String = b.string
-    let shortestLength = min(aString.count, bString.count)
-            
-    for i in 0..<shortestLength {
-        let aAttributes = a.attributes(at: i, effectiveRange: nil)
-        let bAttributes = b.attributes(at: i, effectiveRange: nil)
-        var attributesEqual: Bool {
-            if aAttributes.count != bAttributes.count { return false }
-            for (key, value) in aAttributes {
-                guard let bValue = bAttributes[key] as? NSObject else { return false }
-                if !(value is NSNull) {
-                    if let stringValue = value as? String, let bStringValue = bValue as? String {
-                        if stringValue != bStringValue {
-                            return false
-                        }
-                    }
-                }
+  let aString: String = a.string
+  let bString: String = b.string
+  let shortestLength = min(aString.count, bString.count)
+
+  for i in 0..<shortestLength {
+    let aAttributes = a.attributes(at: i, effectiveRange: nil)
+    let bAttributes = b.attributes(at: i, effectiveRange: nil)
+    var attributesEqual: Bool {
+      if aAttributes.count != bAttributes.count { return false }
+      for (key, value) in aAttributes {
+        guard let bValue = bAttributes[key] as? NSObject else { return false }
+        if !(value is NSNull) {
+          if let stringValue = value as? String, let bStringValue = bValue as? String {
+            if stringValue != bStringValue {
+              return false
             }
-            return true
+          }
         }
-        let aIndex = aString.index(aString.startIndex, offsetBy: i)
-        let bIndex = bString.index(bString.startIndex, offsetBy: i)
-        if aString[aIndex] != bString[bIndex] || !attributesEqual {
-            print("length: \(i), aString: \(aString[aIndex]), bString: \(bString[bIndex]), aAttributes: \(aAttributes), bAttributes: \(bAttributes)")
-            return NSRange(location: 0, length: i)
-        }
+      }
+      return true
     }
-    return NSRange(location: 0, length: shortestLength)
+    let aIndex = aString.index(aString.startIndex, offsetBy: i)
+    let bIndex = bString.index(bString.startIndex, offsetBy: i)
+    if aString[aIndex] != bString[bIndex] || !attributesEqual {
+      return NSRange(location: 0, length: i)
+    }
+  }
+  return NSRange(location: 0, length: shortestLength)
 }

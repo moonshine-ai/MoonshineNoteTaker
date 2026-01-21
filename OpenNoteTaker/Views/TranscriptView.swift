@@ -65,17 +65,6 @@ struct TranscriptView: View {
             .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
                 updateAttributedTextFromDocument()
             }
-//            .onChange(of: selectionRange) { oldRange, newRange in
-//                var selectedLineIds: [UInt64] = []
-//                var textStorage: ProvenanceTrackingTextStorage? = provenanceTextView?.textStorage ?? ProvenanceTrackingTextStorage()
-//                let attributedText: NSAttributedString = provenanceTextView?.textStorage?.backingStore ?? NSAttributedString()
-//                attributedText.enumerateAttribute(.transcriptLineMetadata, in: newRange!, options: []) { value, range, _ in
-//                    if let data = value as? Data, let metadata = decodeMetadata(data) {
-//                        selectedLineIds.append(metadata.lineId)
-//                    }
-//                }
-//                document.setPlaybackRangeFromLineIds(lineIds: selectedLineIds)
-//            }
             .onAppear {
                 // Register zoom handlers
                 zoomHandler.zoomIn = { self.zoomIn() }
@@ -139,7 +128,13 @@ struct TranscriptView: View {
                 provenanceTextStorage?.addAttribute(.transcriptLineMetadata, value: data, range: NSRange(location: range.location, length: range.length))
             }
         }
-        
+
+        if let autoScrollView: AutoScrollView? = provenanceTextView?.enclosingScrollView as? AutoScrollView ?? nil {
+            if autoScrollView?.isAtBottom ?? false {
+                provenanceTextView?.scrollRangeToVisible(newSuffixRange)
+            }
+        }
+    
         Task { @MainActor in
             isUpdatingFromDocument = false
         }
