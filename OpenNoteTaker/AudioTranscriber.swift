@@ -355,7 +355,7 @@ class AudioTranscriber {
       let chunkSamples = Int(Float(sampleRate) * chunkSeconds)
 
       try? self.importedAudioStream?.start()
-
+      self.transcriptDocument?.startNewRecordingBlock()
       while true {
         let importedAudioChunk: [Float] = importedAudioBufferLock.withLock {
           var chunk: [Float] = []
@@ -372,12 +372,16 @@ class AudioTranscriber {
         if !importedAudioChunk.isEmpty {
           try? self.importedAudioStream?.addAudio(
             importedAudioChunk, sampleRate: importedAudioSampleRate)
+          self.transcriptDocument?.addSystemAudio(importedAudioChunk)
+          self.transcriptDocument?.addMicAudio(
+            Array(repeating: 0.0, count: importedAudioChunk.count))
           try? await Task.sleep(nanoseconds: 1_000_000_000)
         } else {
           break
         }
       }
       try? self.importedAudioStream?.stop()
+      self.transcriptDocument?.endCurrentRecordingBlock()
     }
   }
 }

@@ -34,7 +34,6 @@ struct ContentView: View {
                 .environmentObject(zoomHandler)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            
             // Floating recording button overlay at bottom center
             VStack {
                 Spacer()
