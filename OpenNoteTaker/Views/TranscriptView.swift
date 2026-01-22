@@ -25,7 +25,6 @@ let defaultFontSize: Double = 13.0
 struct TranscriptView: View {
   @ObservedObject var document: TranscriptDocument
   @State private var selectionRange: NSRange? = nil
-  @State private var isUpdatingFromDocument = false
   @State private var provenanceTextView: ProvenanceTextView? = nil
   @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
   @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
@@ -54,9 +53,7 @@ struct TranscriptView: View {
     .font(Font.custom(fontFamily, size: fontSize))
     .padding(.top, 4)
     .onChange(of: document.lineIdsNeedingRendering) {
-      if !isUpdatingFromDocument {
-        updateAttributedTextFromDocument()
-      }
+      updateAttributedTextFromDocument()
     }
     .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
       updatePlaybackHighlight(oldLineIds: oldLineIds, newLineIds: newLineIds)
@@ -125,10 +122,6 @@ struct TranscriptView: View {
   }
 
   private func updateAttributedTextFromDocument() {
-    // Prevent circular updates
-    guard !isUpdatingFromDocument else { return }
-
-    isUpdatingFromDocument = true
     let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
 
     let lastUpdatedRange: NSRange? = nil
@@ -153,7 +146,6 @@ struct TranscriptView: View {
         provenanceTextView?.scrollRangeToVisible(lastUpdatedRange!)
       }
     }
-    isUpdatingFromDocument = false
   }
 
   /// Compare two segment arrays to determine if they differ.
