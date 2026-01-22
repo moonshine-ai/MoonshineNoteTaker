@@ -46,9 +46,9 @@ struct TranscriptView: View {
     .font(.body)
     .padding(.top, 4)
     .onChange(of: document.lineIdsNeedingRendering) {
-        if !isUpdatingFromDocument {
-          updateAttributedTextFromDocument()
-        }
+      if !isUpdatingFromDocument {
+        updateAttributedTextFromDocument()
+      }
     }
     .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
       updateAttributedTextFromDocument()
@@ -106,18 +106,10 @@ struct TranscriptView: View {
       }
       let newRange = NSRange(location: oldRange.location, length: line.text.count)
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
-      if oldRange.length > 0 {
-        provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
-        provenanceTextStorage?.setAttributes(
-          [.transcriptLineMetadata: metadata],
-          range: newRange)
-      } else {
-        let newString: NSMutableAttributedString = NSMutableAttributedString(string: line.text)
-        newString.addAttributes(
-          [.transcriptLineMetadata: metadata], range: NSRange(location: 0, length: line.text.count))
-
-        provenanceTextStorage?.insert(newString, at: oldRange.location)
-      }
+      provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
+      provenanceTextStorage?.setAttributes(
+        [.transcriptLineMetadata: metadata],
+        range: newRange)
       document.lineIdsNeedingRendering[line.id] = false
     }
 
