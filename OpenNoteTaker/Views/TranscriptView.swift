@@ -107,7 +107,7 @@ struct TranscriptView: View {
       let newRange = NSRange(location: oldRange.location, length: line.text.count)
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
       provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
-      provenanceTextStorage?.setAttributes(
+      provenanceTextStorage?.addAttributes(
         [.transcriptLineMetadata: metadata],
         range: newRange)
       document.lineIdsNeedingRendering[line.id] = false

@@ -152,7 +152,6 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
 // MARK: - Text View with Custom Storage
 
 class ProvenanceTextView: NSTextView {
-  var onTextChange: ((NSAttributedString) -> Void)?
   var onSelectionChange: ((NSRange) -> Void)?
   var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
   private let bottomPadding: CGFloat = 50
@@ -226,19 +225,6 @@ class ProvenanceTextView: NSTextView {
     }
     // For other types, also don't read (we don't want drag and drop)
     return false
-  }
-
-  override func didChangeText() {
-    super.didChangeText()
-
-    // Adjust frame to include bottom padding
-    adjustFrameForBottomPadding()
-
-    // Create a copy so SwiftUI sees it as a new object
-    let attrString = attributedString()
-
-    let copy = NSMutableAttributedString(attributedString: attrString)
-    onTextChange?(copy)
   }
 
   override func setSelectedRange(
