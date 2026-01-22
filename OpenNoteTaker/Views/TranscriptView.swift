@@ -29,6 +29,14 @@ struct TranscriptView: View {
   @State private var provenanceTextView: ProvenanceTextView? = nil
   @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
   @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
+  @AppStorage("textViewFontFamily") private var fontFamily: String = "System"
+  private var font: NSFont {
+    if fontFamily == "System" {
+      return NSFont.systemFont(ofSize: fontSize)
+    } else {
+      return NSFont(name: fontFamily, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
+    }
+  }
   @EnvironmentObject var zoomHandler: ZoomHandler
   var onFileDrag: ((NSDraggingInfo) -> Bool)?
 
@@ -43,7 +51,7 @@ struct TranscriptView: View {
         updateAttributedTextFromDocument()
       }
     )
-    .font(.body)
+    .font(Font.custom(fontFamily, size: fontSize))
     .padding(.top, 4)
     .onChange(of: document.lineIdsNeedingRendering) {
       if !isUpdatingFromDocument {
@@ -108,7 +116,7 @@ struct TranscriptView: View {
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
       provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
       provenanceTextStorage?.addAttributes(
-        [.transcriptLineMetadata: metadata],
+        [.transcriptLineMetadata: metadata, .font: font],
         range: newRange)
       document.lineIdsNeedingRendering[line.id] = false
     }
@@ -143,16 +151,26 @@ struct TranscriptView: View {
   // Zoom functions
   func zoomIn() {
     fontSize = min(fontSize + 1.0, 72.0)
-    updateAttributedTextFromDocument()
+    updateFont()
   }
 
   func zoomOut() {
     fontSize = max(fontSize - 1.0, 8.0)
-    updateAttributedTextFromDocument()
+    updateFont()
   }
 
   func zoomReset() {
     fontSize = defaultFontSize
-    updateAttributedTextFromDocument()
+    updateFont()
+  }
+
+  func updateFont() {
+    guard
+      let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
+    else { return }
+      let fullRange = NSRange(location: 0, length: provenanceTextStorage.backingStore.length)
+    provenanceTextStorage.removeAttribute(.font, range: fullRange)
+    provenanceTextStorage.addAttributes(
+      [.font: font], range: fullRange)
   }
 }

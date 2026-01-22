@@ -224,7 +224,7 @@ class ProvenanceTextView: NSTextView {
       return false
     }
     // For other types, also don't read (we don't want drag and drop)
-    return false
+    return true
   }
 
   override func setSelectedRange(
