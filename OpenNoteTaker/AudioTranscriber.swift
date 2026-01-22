@@ -306,6 +306,7 @@ class AudioTranscriber {
     guard let document = transcriptDocument else { return }
 
     let text = actualText ?? line.text
+    let duration = TimeInterval(line.duration)
 
     // Skip lines with empty text
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -314,7 +315,7 @@ class AudioTranscriber {
 
     let lineId: UInt64 = line.lineId
     Task { @MainActor in
-      document.updateLine(id: lineId, text: text)
+      document.updateLine(id: lineId, text: text, duration: duration)
     }
   }
 

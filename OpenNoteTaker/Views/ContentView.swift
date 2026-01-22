@@ -27,6 +27,8 @@ struct ContentView: View {
     @StateObject var zoomHandler = ZoomHandler.shared
     @StateObject var audioPlayer: AudioPlayer = AudioPlayer()
     
+    @State private var pausedPlayingIds: [UInt64] = []
+
     var body: some View {
         ZStack {
             // Main content area - transcript view fills entire space
@@ -78,9 +80,12 @@ struct ContentView: View {
                         Task {
                             if audioPlayer.isPlaying {
                                 audioPlayer.stop()
+                                pausedPlayingIds = document.playingLineIds
+                                document.playingLineIds = []
                                 document.blockPlaybackRangeUpdates = false
                             } else {                                
                                 document.blockPlaybackRangeUpdates = true
+                                document.playingLineIds = pausedPlayingIds
                                 try audioPlayer.play()
                             }
                         }
@@ -159,6 +164,7 @@ struct ContentView: View {
                         audioPlayer.stop()
                         document.blockPlaybackRangeUpdates = false
                         document.resetCurrentPlaybackOffset()
+                        document.playingLineIds = []
                     case .playbackLineIdsUpdated(_, let newLineIds):
                         document.playingLineIds = newLineIds
                     case .playbackError(let error):

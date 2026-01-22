@@ -369,29 +369,6 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
   }
 }
 
-// MARK: - Helper Functions
-
-func makeAttributedString(
-  from segments: [TranscriptTextSegment], playingLineIds: [UInt64], fontSize: CGFloat
-) -> NSAttributedString {
-  let result = NSMutableAttributedString()
-  let baseFont = NSFont.systemFont(ofSize: fontSize)
-  let boldFont = NSFont.boldSystemFont(ofSize: fontSize)
-
-  for segment in segments {
-    guard let encoded = encodeMetadata(segment.metadata) else { continue }
-    var attrs: [NSMutableAttributedString.Key: Any] = [.transcriptLineMetadata: encoded]
-    if playingLineIds.contains(segment.metadata.lineId) {
-      attrs[.font] = boldFont
-    } else {
-      attrs[.font] = baseFont
-    }
-    let segmentStr = NSAttributedString(string: segment.text, attributes: attrs)
-    result.append(segmentStr)
-  }
-  return result
-}
-
 func printAttributedString(attributedString: NSAttributedString) {
   attributedString.enumerateAttribute(
     .transcriptLineMetadata, in: NSRange(location: 0, length: attributedString.length), options: []
@@ -440,35 +417,4 @@ func mergeAdjacentSegments(_ segments: [TranscriptTextSegment]) -> [TranscriptTe
   result.append(current)
 
   return result
-}
-
-func getCommonPrefix(a: NSAttributedString, b: NSAttributedString) -> NSRange {
-  let aString: String = a.string
-  let bString: String = b.string
-  let shortestLength = min(aString.count, bString.count)
-
-  for i in 0..<shortestLength {
-    let aAttributes = a.attributes(at: i, effectiveRange: nil)
-    let bAttributes = b.attributes(at: i, effectiveRange: nil)
-    var attributesEqual: Bool {
-      if aAttributes.count != bAttributes.count { return false }
-      for (key, value) in aAttributes {
-        guard let bValue = bAttributes[key] as? NSObject else { return false }
-        if !(value is NSNull) {
-          if let stringValue = value as? String, let bStringValue = bValue as? String {
-            if stringValue != bStringValue {
-              return false
-            }
-          }
-        }
-      }
-      return true
-    }
-    let aIndex = aString.index(aString.startIndex, offsetBy: i)
-    let bIndex = bString.index(bString.startIndex, offsetBy: i)
-    if aString[aIndex] != bString[bIndex] || !attributesEqual {
-      return NSRange(location: 0, length: i)
-    }
-  }
-  return NSRange(location: 0, length: shortestLength)
 }

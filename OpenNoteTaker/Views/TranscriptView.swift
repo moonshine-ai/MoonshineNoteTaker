@@ -59,7 +59,7 @@ struct TranscriptView: View {
       }
     }
     .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
-      updateAttributedTextFromDocument()
+      updatePlaybackHighlight(oldLineIds: oldLineIds, newLineIds: newLineIds)
     }
     .onAppear {
       // Register zoom handlers
@@ -91,6 +91,39 @@ struct TranscriptView: View {
     document.updateFromViewSegments(viewSegments)
   }
 
+  private func updatePlaybackHighlight(oldLineIds: [UInt64], newLineIds: [UInt64]) {
+    guard
+      let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
+    else { return }
+    for lineId in oldLineIds {
+      let range = getRangeForLineId(lineId: lineId)
+      provenanceTextStorage.removeAttribute(.backgroundColor, range: range)
+    }
+    for lineId in newLineIds {
+      let range = getRangeForLineId(lineId: lineId)
+      provenanceTextStorage.addAttributes([.backgroundColor: NSColor.yellow], range: range)
+    }
+  }
+
+  private func getRangeForLineId(lineId: UInt64) -> NSRange {
+    guard
+      let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
+    else { return NSRange(location: 0, length: 0) }
+    var result: NSRange = NSRange(location: provenanceTextStorage.length, length: 0)
+    provenanceTextStorage.enumerateAttribute(
+      .transcriptLineMetadata,
+      in: NSRange(location: 0, length: provenanceTextStorage.length), options: []
+    ) { value, range, stop in
+      if let data = value as? Data, let existingMetadata = decodeMetadata(data),
+        existingMetadata.lineId == lineId
+      {
+        result = range
+        stop.pointee = true
+      }
+    }
+    return result
+  }
+
   private func updateAttributedTextFromDocument() {
     // Prevent circular updates
     guard !isUpdatingFromDocument else { return }
@@ -100,24 +133,16 @@ struct TranscriptView: View {
 
     let lastUpdatedRange: NSRange? = nil
     for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
-      var oldRange: NSRange = NSRange(location: provenanceTextStorage?.length ?? 0, length: 0)
-      provenanceTextStorage?.enumerateAttribute(
-        .transcriptLineMetadata,
-        in: NSRange(location: 0, length: provenanceTextStorage?.length ?? 0), options: []
-      ) { value, range, stop in
-        if let data = value as? Data, let existingMetadata = decodeMetadata(data),
-          existingMetadata.lineId == line.id
-        {
-          oldRange = range
-          stop.pointee = true
-        }
-      }
+      let oldRange: NSRange = getRangeForLineId(lineId: line.id)
       let newRange = NSRange(location: oldRange.location, length: line.text.count)
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
       provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
       provenanceTextStorage?.addAttributes(
-        [.transcriptLineMetadata: metadata, .font: font],
+        [
+          .transcriptLineMetadata: metadata, .font: font,
+        ],
         range: newRange)
+
       document.lineIdsNeedingRendering[line.id] = false
     }
 
@@ -168,7 +193,7 @@ struct TranscriptView: View {
     guard
       let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
     else { return }
-      let fullRange = NSRange(location: 0, length: provenanceTextStorage.backingStore.length)
+    let fullRange = NSRange(location: 0, length: provenanceTextStorage.backingStore.length)
     provenanceTextStorage.removeAttribute(.font, range: fullRange)
     provenanceTextStorage.addAttributes(
       [.font: font], range: fullRange)

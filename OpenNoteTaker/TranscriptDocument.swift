@@ -23,7 +23,7 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
   let startTime: Date
 
   /// Duration of the line in seconds.
-  let duration: TimeInterval
+  var duration: TimeInterval
 
   /// End time of the line (startTime + duration).
   var endTime: Date {
@@ -517,10 +517,11 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   }
 
   @MainActor
-  func updateLine(id: UInt64, text: String) {
+  func updateLine(id: UInt64, text: String, duration: TimeInterval) {
     if let index = lines.firstIndex(where: { $0.id == id }) {
       var updatedLine = lines[index]
       updatedLine.text = text
+      updatedLine.duration = duration
       lines[index] = updatedLine
       lines.sort { $0.startTime < $1.startTime }
       lineIdsNeedingRendering[id] = true
@@ -583,6 +584,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     recordingBlocksLock.lock()
     defer { recordingBlocksLock.unlock() }
     recordingBlocks[recordingBlocks.count - 1].endTime = Date()
+    let lastBlock = recordingBlocks[recordingBlocks.count - 1]
+    let wallClockDuration = lastBlock.endTime.timeIntervalSince(lastBlock.startTime)
   }
 
   func addMicAudio(_ audio: [Float]) {
@@ -628,26 +631,29 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     return 0
   }
 
-  func getLineIdsForRange(startOffset: Int, endOffset: Int) -> [UInt64] {
-    let (startBlockIndex, startBlockOffset) = getBlockIndexAndOffset(index: startOffset)
-    let (endBlockIndex, endBlockOffset) = getBlockIndexAndOffset(index: endOffset)
+  func getLineIdsForCurrentTime(currentGlobalOffset: Int) -> [UInt64] {
+    let (currentBlockIndex, currentBlockOffset) = getBlockIndexAndOffset(index: currentGlobalOffset)
+    let currentTime: Date = recordingBlocks[currentBlockIndex].startTime + TimeInterval(Double(currentBlockOffset) / 48000.0)
     var lineIds: [UInt64] = []
-    let rangeStartTime =
-      recordingBlocks[startBlockIndex].startTime + TimeInterval(Double(startBlockOffset) / 48000.0)
-    let rangeEndTime =
-      recordingBlocks[endBlockIndex].startTime + TimeInterval(Double(endBlockOffset) / 48000.0)
     for line in lines {
-      let lineStartOverlaps = rangeStartTime >= line.startTime && rangeStartTime <= line.endTime
-      let lineEndOverlaps = rangeEndTime >= line.endTime && rangeEndTime <= line.endTime
-      let rangeOverlapsLine = line.startTime >= rangeStartTime && line.endTime <= rangeEndTime
-      if lineStartOverlaps || lineEndOverlaps || rangeOverlapsLine {
-        lineIds.append(line.id)
-      }
+        if currentTime >= line.startTime && currentTime <= line.endTime {
+            lineIds.append(line.id)
+        }
     }
     return lineIds
   }
 
+  var playbackTotalSamples: Int = 0
+  var playbackStartTime: Date? = nil
+
   func getNextAudioData(length: UInt32) -> ([Float], [UInt64], Bool) {
+    if playbackStartTime == nil {
+      playbackStartTime = Date()
+    }
+    let wallClockDuration = Date().timeIntervalSince(playbackStartTime!)
+    let expectedSamples = Int(wallClockDuration * 48000.0)
+    let actualSamples = currentPlaybackOffset + Int(length)
+
     recordingBlocksLock.lock()
     defer { recordingBlocksLock.unlock() }
 
@@ -674,10 +680,14 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       } else {
         currentEndOffset = recordingBlocks[blockIndex].micAudio.count
       }
+      let micStartOffset = min(currentStartOffset, recordingBlocks[blockIndex].micAudio.count)
+      let micEndOffset = max(min(currentEndOffset, recordingBlocks[blockIndex].micAudio.count), micStartOffset)
+      let systemStartOffset = min(currentStartOffset, recordingBlocks[blockIndex].systemAudio.count)
+      let systemEndOffset = max(min(currentEndOffset, recordingBlocks[blockIndex].systemAudio.count), systemStartOffset)
       micAudio.append(
-        contentsOf: recordingBlocks[blockIndex].micAudio[currentStartOffset..<currentEndOffset])
+        contentsOf: recordingBlocks[blockIndex].micAudio[micStartOffset..<micEndOffset])
       systemAudio.append(
-        contentsOf: recordingBlocks[blockIndex].systemAudio[currentStartOffset..<currentEndOffset])
+        contentsOf: recordingBlocks[blockIndex].systemAudio[systemStartOffset..<systemEndOffset])
       currentGlobalOffset += currentEndOffset - currentStartOffset
     }
     if playbackEndOffset != -1 {
@@ -699,8 +709,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     } else if systemAudio.count > length {
       systemAudio = Array(systemAudio.prefix(Int(length)))
     }
-    let lineIds = getLineIdsForRange(
-      startOffset: currentPlaybackOffset, endOffset: currentGlobalOffset)
+    let lineIds = getLineIdsForCurrentTime(currentGlobalOffset: currentGlobalOffset)
     if !self.reachedEnd {
       currentPlaybackOffset += Int(length)
     }
