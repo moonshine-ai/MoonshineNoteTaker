@@ -584,8 +584,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     recordingBlocksLock.lock()
     defer { recordingBlocksLock.unlock() }
     recordingBlocks[recordingBlocks.count - 1].endTime = Date()
-    let lastBlock = recordingBlocks[recordingBlocks.count - 1]
-    let wallClockDuration = lastBlock.endTime.timeIntervalSince(lastBlock.startTime)
   }
 
   func addMicAudio(_ audio: [Float]) {
@@ -643,17 +641,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     return lineIds
   }
 
-  var playbackTotalSamples: Int = 0
-  var playbackStartTime: Date? = nil
-
   func getNextAudioData(length: UInt32) -> ([Float], [UInt64], Bool) {
-    if playbackStartTime == nil {
-      playbackStartTime = Date()
-    }
-    let wallClockDuration = Date().timeIntervalSince(playbackStartTime!)
-    let expectedSamples = Int(wallClockDuration * 48000.0)
-    let actualSamples = currentPlaybackOffset + Int(length)
-
     recordingBlocksLock.lock()
     defer { recordingBlocksLock.unlock() }
 

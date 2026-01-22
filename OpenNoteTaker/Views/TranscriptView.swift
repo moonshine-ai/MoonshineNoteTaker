@@ -123,22 +123,31 @@ struct TranscriptView: View {
 
   private func updateAttributedTextFromDocument() {
     let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
-    provenanceTextStorage?.beginEditing()
     let lastUpdatedRange: NSRange? = nil
+    var lineAlreadyExists: [UInt64: Bool] = [:]
+    let fullRange = NSRange(location: 0, length: provenanceTextStorage?.length ?? 0)
+    provenanceTextStorage?.enumerateAttribute(
+      .transcriptLineMetadata,
+      in: fullRange, options: []
+    ) { value, range, stop in
+      if let data = value as? Data, let existingMetadata = decodeMetadata(data) {
+        lineAlreadyExists[existingMetadata.lineId] = true
+      }
+    }
     for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
-      let oldRange: NSRange = getRangeForLineId(lineId: line.id)
-      let newRange = NSRange(location: oldRange.location, length: line.text.count)
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
-      provenanceTextStorage?.replaceCharacters(in: oldRange, with: line.text)
-      provenanceTextStorage?.addAttributes(
-        [
-          .transcriptLineMetadata: metadata, .font: font,
-        ],
-        range: newRange)
+      let newString: NSAttributedString = NSAttributedString(
+        string: line.text, attributes: [.font: font, .transcriptLineMetadata: metadata])
+      let oldRange: NSRange
+      if !(lineAlreadyExists[line.id] ?? false) {
+        provenanceTextStorage?.append(newString)
+      } else {
+        let oldRange = getRangeForLineId(lineId: line.id)
+        provenanceTextStorage?.replaceCharacters(in: oldRange, with: newString)
+      }
 
       document.lineIdsNeedingRendering[line.id] = false
     }
-    provenanceTextStorage?.endEditing()
 
     if let autoScrollView: AutoScrollView? = provenanceTextView?.enclosingScrollView
       as? AutoScrollView ?? nil, lastUpdatedRange != nil
