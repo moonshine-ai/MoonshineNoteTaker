@@ -123,7 +123,7 @@ struct TranscriptView: View {
 
   private func updateAttributedTextFromDocument() {
     let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
-
+    provenanceTextStorage?.beginEditing()
     let lastUpdatedRange: NSRange? = nil
     for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
       let oldRange: NSRange = getRangeForLineId(lineId: line.id)
@@ -138,6 +138,7 @@ struct TranscriptView: View {
 
       document.lineIdsNeedingRendering[line.id] = false
     }
+    provenanceTextStorage?.endEditing()
 
     if let autoScrollView: AutoScrollView? = provenanceTextView?.enclosingScrollView
       as? AutoScrollView ?? nil, lastUpdatedRange != nil

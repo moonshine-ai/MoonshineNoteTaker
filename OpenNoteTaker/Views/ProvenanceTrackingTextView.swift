@@ -67,7 +67,6 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
     // Get metadata to apply to new text (from the position being edited)
     let metadataForInsertion = getMetadataForInsertion(at: range)
 
-    beginEditing()
     backingStore.replaceCharacters(in: range, with: str)
 
     // Apply metadata to the newly inserted text, marked as user-edited
@@ -80,8 +79,6 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
     }
 
     edited(.editedCharacters, range: range, changeInLength: delta)
-
-    endEditing()
   }
 
   override func setAttributes(_ attrs: [NSAttributedString.Key: Any]?, range: NSRange) {
@@ -109,12 +106,10 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
       }
     }
 
-    beginEditing()
     // Apply merged attributes that include preserved metadata (or nil if clearing)
     backingStore.setAttributes(mergedAttrs, range: range)
 
     edited(.editedAttributes, range: range, changeInLength: 0)
-    endEditing()
   }
 
   private func getMetadataForInsertion(at range: NSRange) -> TranscriptLineMetadata? {
