@@ -127,6 +127,7 @@ struct ContentView: View {
                         Text("Open System Settings and go to Privacy & Security > Screen Recording to grant permission.")
                             .font(.title2)
                             .padding(.bottom)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .background(.red)

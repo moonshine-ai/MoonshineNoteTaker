@@ -138,7 +138,6 @@ struct TranscriptView: View {
       let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
       let newString: NSAttributedString = NSAttributedString(
         string: line.text, attributes: [.font: font, .transcriptLineMetadata: metadata])
-      let oldRange: NSRange
       if !(lineAlreadyExists[line.id] ?? false) {
         provenanceTextStorage?.append(newString)
       } else {
@@ -149,10 +148,10 @@ struct TranscriptView: View {
       document.lineIdsNeedingRendering[line.id] = false
     }
 
-    if let autoScrollView: AutoScrollView? = provenanceTextView?.enclosingScrollView
-      as? AutoScrollView ?? nil, lastUpdatedRange != nil
+      if let autoScrollView: AutoScrollView = provenanceTextView?.enclosingScrollView
+        as? AutoScrollView, lastUpdatedRange != nil
     {
-      if autoScrollView?.isAtBottom ?? false {
+      if autoScrollView.isAtBottom {
         provenanceTextView?.scrollRangeToVisible(lastUpdatedRange!)
       }
     }
