@@ -21,7 +21,7 @@ struct OpenNoteTakerApp: App {
         }
         .defaultSize(width: 480, height: 724)
         .commands {
-            CommandMenu("View") {
+            CommandGroup(after: .toolbar) {
                 Button("Zoom In") {
                     ZoomHandler.shared.zoomIn?()
                 }
