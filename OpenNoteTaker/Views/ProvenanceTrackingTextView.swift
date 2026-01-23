@@ -238,6 +238,19 @@ class ProvenanceTextView: NSTextView {
     }
   }
 
+  override func mouseMoved(with event: NSEvent) {
+    // If a higher-level view (like a SwiftUI button) has already set a cursor,
+    // don't override it. Check if current cursor is not I-beam.
+    if NSCursor.current != NSCursor.iBeam {
+      // Cursor already set by higher-level view (e.g., button's onHover),
+      // don't reset it to I-beam
+      return
+    }
+    
+    // Otherwise, allow normal NSTextView cursor behavior
+    super.mouseMoved(with: event)
+  }
+
   private func adjustFrameForBottomPadding() {
     guard let textContainer = self.textContainer,
       let layoutManager = textContainer.layoutManager
