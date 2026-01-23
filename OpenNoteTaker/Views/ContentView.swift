@@ -24,16 +24,16 @@ struct ContentView: View {
     @State private var extractedAudioBuffers: [URL: [Float]] = [:]
     
     @StateObject var screenRecorder = ScreenRecorder()
-    @StateObject var zoomHandler = ZoomHandler.shared
     @StateObject var audioPlayer: AudioPlayer = AudioPlayer()
-    
+
+    @AppStorage("fontSize") private var fontSize: Double = 14.0
+
     @State private var pausedPlayingIds: [UInt64] = []
 
     var body: some View {
         ZStack {
             // Main content area - transcript view fills entire space
             TranscriptView(document: document, onFileDrag: handleFileDragFromTextView)
-                .environmentObject(zoomHandler)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Floating recording button overlay at bottom center

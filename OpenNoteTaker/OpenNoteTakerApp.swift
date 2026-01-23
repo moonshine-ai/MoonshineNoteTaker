@@ -3,6 +3,9 @@ import AppKit
 
 @main
 struct OpenNoteTakerApp: App {
+    @AppStorage("fontSize") private var fontSize: Double = 14.0
+    @AppStorage("fontFamily") private var fontFamily: String = "System"
+
     init() {
         // Force a new document if none are restored
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -23,17 +26,17 @@ struct OpenNoteTakerApp: App {
         .commands {
             CommandGroup(after: .toolbar) {
                 Button("Zoom In") {
-                    ZoomHandler.shared.zoomIn?()
+                    fontSize = min(fontSize + 1.0, 72.0)
                 }
                 .keyboardShortcut("+", modifiers: .command)
                 
                 Button("Zoom Out") {
-                    ZoomHandler.shared.zoomOut?()
+                    fontSize = max(fontSize - 1.0, 8.0)
                 }
                 .keyboardShortcut("-", modifiers: .command)
                 
                 Button("Actual Size") {
-                    ZoomHandler.shared.zoomReset?()
+                    fontSize = 14.0
                 }
                 .keyboardShortcut("0", modifiers: .command)
             }

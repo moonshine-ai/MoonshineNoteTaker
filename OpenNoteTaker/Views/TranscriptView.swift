@@ -7,18 +7,6 @@ A view that displays transcript text in an editable TextEditor.
 
 import SwiftUI
 
-/// Observable object to handle zoom actions from menu commands
-@MainActor
-class ZoomHandler: ObservableObject {
-  static let shared = ZoomHandler()
-
-  var zoomIn: (() -> Void)?
-  var zoomOut: (() -> Void)?
-  var zoomReset: (() -> Void)?
-
-  private init() {}
-}
-
 let defaultFontSize: Double = 13.0
 
 /// A view that displays transcript text in an editable TextEditor.
@@ -27,8 +15,8 @@ struct TranscriptView: View {
   @State private var selectionRange: NSRange? = nil
   @State private var provenanceTextView: ProvenanceTextView? = nil
   @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
-  @AppStorage("textViewFontSize") private var fontSize: Double = defaultFontSize
-  @AppStorage("textViewFontFamily") private var fontFamily: String = "System"
+  @AppStorage("fontSize") private var fontSize: Double = defaultFontSize
+  @AppStorage("fontFamily") private var fontFamily: String = "System"
   private var font: NSFont {
     if fontFamily == "System" {
       return NSFont.systemFont(ofSize: fontSize)
@@ -36,7 +24,6 @@ struct TranscriptView: View {
       return NSFont(name: fontFamily, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
     }
   }
-  @EnvironmentObject var zoomHandler: ZoomHandler
   var onFileDrag: ((NSDraggingInfo) -> Bool)?
 
   var body: some View {
@@ -58,17 +45,11 @@ struct TranscriptView: View {
     .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
       updatePlaybackHighlight(oldLineIds: oldLineIds, newLineIds: newLineIds)
     }
-    .onAppear {
-      // Register zoom handlers
-      zoomHandler.zoomIn = { self.zoomIn() }
-      zoomHandler.zoomOut = { self.zoomOut() }
-      zoomHandler.zoomReset = { self.zoomReset() }
-    }
     .onChange(of: fontSize) { oldValue, newValue in
-      // Re-register handlers when view updates (in case of view recreation)
-      zoomHandler.zoomIn = { self.zoomIn() }
-      zoomHandler.zoomOut = { self.zoomOut() }
-      zoomHandler.zoomReset = { self.zoomReset() }
+      updateFont()
+    }
+    .onChange(of: fontFamily) { oldValue, newValue in
+      updateFont()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
@@ -174,29 +155,13 @@ struct TranscriptView: View {
     return false
   }
 
-  // Zoom functions
-  func zoomIn() {
-    fontSize = min(fontSize + 1.0, 72.0)
-    updateFont()
-  }
-
-  func zoomOut() {
-    fontSize = max(fontSize - 1.0, 8.0)
-    updateFont()
-  }
-
-  func zoomReset() {
-    fontSize = defaultFontSize
-    updateFont()
-  }
-
-  func updateFont() {
+  private func updateFont() {
     guard
       let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
     else { return }
     let fullRange = NSRange(location: 0, length: provenanceTextStorage.backingStore.length)
-    provenanceTextStorage.removeAttribute(.font, range: fullRange)
-    provenanceTextStorage.addAttributes(
+      provenanceTextStorage.removeAttribute(.font, range: fullRange)
+      provenanceTextStorage.addAttributes(
       [.font: font], range: fullRange)
   }
 }
