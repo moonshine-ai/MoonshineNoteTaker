@@ -192,6 +192,9 @@ struct ContentView: View {
     .onReceive(NotificationCenter.default.publisher(for: .importFiles)) { _ in
       showImportFilePicker()
     }
+    .focusedSceneValue(\.exportAction) {
+      showExportFilePicker()
+    }
   }
 
   /// Handle file drags from the text view (NSDraggingInfo)
@@ -432,6 +435,42 @@ struct ContentView: View {
           }
         }
       }
+    }
+  }
+
+  /// Show file picker for exporting text as RTF
+  private func showExportFilePicker() {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.rtf]
+    panel.nameFieldStringValue = document.title.isEmpty ? "Untitled" : document.title
+    panel.canCreateDirectories = true
+    
+    panel.begin { response in
+      if response == .OK, let url = panel.url {
+        exportTextAsRTF(to: url)
+      }
+    }
+  }
+
+  /// Export the document's attributed text as RTF to the specified URL
+  private func exportTextAsRTF(to url: URL) {
+    let attributedText = document.attributedText
+    
+    // Convert NSAttributedString to RTF data
+    let range = NSRange(location: 0, length: attributedText.length)
+    guard let rtfData = try? attributedText.data(
+      from: range,
+      documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+    ) else {
+      print("Failed to convert attributed text to RTF")
+      return
+    }
+    
+    // Write RTF data to file
+    do {
+      try rtfData.write(to: url)
+    } catch {
+      print("Failed to write RTF file: \(error.localizedDescription)")
     }
   }
 }

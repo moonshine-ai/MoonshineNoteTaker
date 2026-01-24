@@ -5,6 +5,19 @@ extension Notification.Name {
     static let importFiles = Notification.Name("importFiles")
 }
 
+// MARK: - FocusedValue for Export Action
+
+struct ExportActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var exportAction: (() -> Void)? {
+        get { self[ExportActionKey.self] }
+        set { self[ExportActionKey.self] = newValue }
+    }
+}
+
 @main
 struct OpenNoteTakerApp: App {
     @AppStorage("fontSize") private var fontSize: Double = 14.0
@@ -33,8 +46,24 @@ struct OpenNoteTakerApp: App {
                     NotificationCenter.default.post(name: .importFiles, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: .command)
+                
+                ExportCommand()
             }
             TextFormattingCommands()
         }
+    }
+}
+
+// MARK: - Export Command
+
+struct ExportCommand: View {
+    @FocusedValue(\.exportAction) var exportAction
+    
+    var body: some View {
+        Button("Export...") {
+            exportAction?()
+        }
+        .keyboardShortcut("e", modifiers: [.command])
+        .disabled(exportAction == nil)
     }
 }
