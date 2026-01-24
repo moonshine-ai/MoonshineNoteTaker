@@ -246,13 +246,19 @@ class ProvenanceTextView: NSTextView {
   // Override pasteboard reading to prevent file URLs from being inserted as text
   override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool
   {
-    // Check if this is a file URL pasteboard type
+    // Allow text/string types through (for paste operations)
+    if type == .string || type == NSPasteboard.PasteboardType("NSStringPboardType") {
+      return super.readSelection(from: pboard, type: type)
+    }
+    
+    // Check if this is a file URL pasteboard type (for drag and drop)
     if pboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
       // Don't read file URLs - let SwiftUI handle them
       return false
     }
-    // For other types, also don't read (we don't want drag and drop)
-    return true
+    
+    // For other types, use default behavior
+    return super.readSelection(from: pboard, type: type)
   }
 
   override func setSelectedRange(
