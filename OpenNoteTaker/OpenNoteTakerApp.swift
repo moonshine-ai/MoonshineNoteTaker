@@ -1,6 +1,10 @@
 import SwiftUI
 import AppKit
 
+extension Notification.Name {
+    static let importFiles = Notification.Name("importFiles")
+}
+
 @main
 struct OpenNoteTakerApp: App {
     @AppStorage("fontSize") private var fontSize: Double = 14.0
@@ -24,6 +28,12 @@ struct OpenNoteTakerApp: App {
         }
         .defaultSize(width: 480, height: 724)
         .commands {
+            CommandGroup(replacing: .importExport) {
+                Button("Import...") {
+                    NotificationCenter.default.post(name: .importFiles, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: .command)
+            }
             CommandGroup(after: .toolbar) {
                 Button("Zoom In") {
                     fontSize = min(fontSize + 1.0, 72.0)

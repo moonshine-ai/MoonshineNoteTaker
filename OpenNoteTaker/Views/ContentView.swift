@@ -189,6 +189,9 @@ struct ContentView: View {
       // Update the document's undo manager if it changes
       document.undoManager = newValue
     }
+    .onReceive(NotificationCenter.default.publisher(for: .importFiles)) { _ in
+      showImportFilePicker()
+    }
   }
 
   /// Handle file drags from the text view (NSDraggingInfo)
@@ -409,6 +412,26 @@ struct ContentView: View {
     } catch {
       print("Error reading audio file: \(error.localizedDescription)")
       try? FileManager.default.removeItem(at: tempFileURL)
+    }
+  }
+
+  /// Show file picker for importing audio files
+  private func showImportFilePicker() {
+    let panel = NSOpenPanel()
+    panel.allowsMultipleSelection = true
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = false
+    panel.allowedContentTypes = []  // Allow all file types
+    
+    panel.begin { response in
+      if response == .OK {
+        // Extract audio from all selected file URLs
+        for url in panel.urls {
+          Task {
+            await extractAudioToPCMBuffer(from: url)
+          }
+        }
+      }
     }
   }
 }
