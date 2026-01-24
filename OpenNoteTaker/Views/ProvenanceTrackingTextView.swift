@@ -152,7 +152,8 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
     for selectedRange in selectedRanges {
       backingStore.enumerateAttribute(.transcriptLineMetadata, in: selectedRange, options: []) {
         lineValue, lineRange, _ in
-        if let lineValueJson = lineValue as? Data, let lineMetadata = decodeMetadata(lineValueJson) {
+        if let lineValueJson = lineValue as? Data, let lineMetadata = decodeMetadata(lineValueJson)
+        {
           lineIds.append(lineMetadata.lineId)
         }
       }
@@ -182,6 +183,7 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
 class ProvenanceTextView: NSTextView {
   var onSelectionChange: (([UInt64]) -> Void)?
   var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
+  var onAttributedTextChange: ((NSAttributedString) -> Void)?
   private let bottomPadding: CGFloat = 50
 
   convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
@@ -250,13 +252,13 @@ class ProvenanceTextView: NSTextView {
     if type == .string || type == NSPasteboard.PasteboardType("NSStringPboardType") {
       return super.readSelection(from: pboard, type: type)
     }
-    
+
     // Check if this is a file URL pasteboard type (for drag and drop)
     if pboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
       // Don't read file URLs - let SwiftUI handle them
       return false
     }
-    
+
     // For other types, use default behavior
     return super.readSelection(from: pboard, type: type)
   }
@@ -266,14 +268,16 @@ class ProvenanceTextView: NSTextView {
   ) {
     super.setSelectedRange(charRange, affinity: affinity, stillSelecting: stillSelecting)
     if !stillSelecting {
-        guard let provenanceTextStorage = self.textStorage as? ProvenanceTrackingTextStorage else { return }
-        let selectedRanges = self.selectedRanges.map { $0.rangeValue }
-        if selectedRanges.count == 1 && selectedRanges[0].length == 0 {
-            onSelectionChange?([])
-            return
-        }
-        let lineIds = provenanceTextStorage.getLineIdsFromRanges(selectedRanges: selectedRanges)
-        onSelectionChange?(lineIds)
+      guard let provenanceTextStorage = self.textStorage as? ProvenanceTrackingTextStorage else {
+        return
+      }
+      let selectedRanges = self.selectedRanges.map { $0.rangeValue }
+      if selectedRanges.count == 1 && selectedRanges[0].length == 0 {
+        onSelectionChange?([])
+        return
+      }
+      let lineIds = provenanceTextStorage.getLineIdsFromRanges(selectedRanges: selectedRanges)
+      onSelectionChange?(lineIds)
     }
   }
 
@@ -295,6 +299,13 @@ class ProvenanceTextView: NSTextView {
 
     // Otherwise, allow normal NSTextView cursor behavior
     super.mouseMoved(with: event)
+  }
+
+  override func didChangeText() {
+    super.didChangeText()
+    if let onAttributedTextChange = onAttributedTextChange {
+      onAttributedTextChange(self.attributedString())
+    }
   }
 
   private func adjustFrameForBottomPadding() {
@@ -362,8 +373,10 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
   var textViewRef: Binding<ProvenanceTextView?>?
   var textStorageRef: Binding<ProvenanceTrackingTextStorage?>?
   var onTextViewReady: ((ProvenanceTextView) -> Void)?
+  var onAttributedTextChange: ((NSAttributedString) -> Void)?
 
   class Coordinator {
+    var attributedText: NSAttributedString = NSAttributedString()
     var textView: ProvenanceTextView?
     var textStorage: ProvenanceTrackingTextStorage?
   }
@@ -379,11 +392,14 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     let textStorage = ProvenanceTrackingTextStorage()
     let textView = ProvenanceTextView(frame: .zero, textStorage: textStorage)
 
-    textView.isRichText = false
+    textView.isRichText = true
     textView.allowsUndo = true
     textView.isEditable = true
     textView.isSelectable = true
-
+    textView.typingAttributes = [
+      .font: NSFont.systemFont(ofSize: fontSize)
+    ]
+    textView.usesInspectorBar = true
     // Apply font size as default
     textView.font = NSFont.systemFont(ofSize: fontSize)
 
@@ -403,6 +419,7 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
       }
     }
     textView.onFileDrag = onFileDrag
+    textView.onAttributedTextChange = onAttributedTextChange
 
     // Store reference in coordinator
     context.coordinator.textView = textView

@@ -34,22 +34,7 @@ struct OpenNoteTakerApp: App {
                 }
                 .keyboardShortcut("i", modifiers: .command)
             }
-            CommandGroup(after: .toolbar) {
-                Button("Zoom In") {
-                    fontSize = min(fontSize + 1.0, 72.0)
-                }
-                .keyboardShortcut("+", modifiers: .command)
-                
-                Button("Zoom Out") {
-                    fontSize = max(fontSize - 1.0, 8.0)
-                }
-                .keyboardShortcut("-", modifiers: .command)
-                
-                Button("Actual Size") {
-                    fontSize = 14.0
-                }
-                .keyboardShortcut("0", modifiers: .command)
-            }
+            TextFormattingCommands()
         }
     }
 }

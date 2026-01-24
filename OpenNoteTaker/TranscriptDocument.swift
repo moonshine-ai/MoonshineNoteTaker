@@ -107,6 +107,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   var selectedLineIds: [UInt64] = []
   private var previousSelectedLineIds: [UInt64] = []
 
+  var attributedText: NSAttributedString = NSAttributedString()
+
   /// Thread-safe cached snapshot for background thread access during saves
   private nonisolated(unsafe) var cachedSnapshot: DocumentData?
 
@@ -136,6 +138,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     let sessionStartTime: Date?
     let sessionEndTime: Date?
     var recordingBlocks: [RecordingBlock] = []
+    var attributedText: NSAttributedString = NSAttributedString()
 
     // Load bundle format (directory)
     guard let fileWrapper = configuration.file.fileWrappers,
@@ -151,13 +154,14 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       self.sessionStartTime = sessionStartTime
       self.sessionEndTime = sessionEndTime
       self.recordingBlocks = recordingBlocks
-
+      self.attributedText = attributedText
       // Initialize the cached snapshot
       let snapshot = DocumentData(
         lines: lines,
         sessionStartTime: sessionStartTime,
         sessionEndTime: sessionEndTime,
-        recordingBlocks: []
+        recordingBlocks: [],
+        attributedText: attributedText
       )
       snapshotLock.lock()
       cachedSnapshot = snapshot
@@ -168,6 +172,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     guard let documentData = try? JSONDecoder().decode(DocumentData.self, from: jsonData) else {
       throw CocoaError(.fileReadCorruptFile)
     }
+
+    attributedText = documentData.attributedText
 
     // Load audio from WAV files
     for codableBlock in documentData.recordingBlocks {
@@ -203,18 +209,17 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     self.sessionStartTime = sessionStartTime
     self.sessionEndTime = sessionEndTime
     self.recordingBlocks = recordingBlocks
-
-    for line in lines {
-      lineIdsNeedingRendering[line.id] = true
-    }
+    self.attributedText = documentData.attributedText
 
     // Initialize the cached snapshot
-    let snapshot = DocumentData(
+    var snapshot = DocumentData(
       lines: lines,
       sessionStartTime: sessionStartTime,
       sessionEndTime: sessionEndTime,
-      recordingBlocks: recordingBlocks.compactMap { $0.codable }
+      recordingBlocks: recordingBlocks.compactMap { $0.codable },
+      attributedText: attributedText
     )
+    snapshot.recordingBlocksWithAudio = recordingBlocks
     snapshotLock.lock()
     cachedSnapshot = snapshot
     snapshotLock.unlock()
@@ -228,11 +233,13 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     self.sessionStartTime = nil
     self.sessionEndTime = nil
     self.recordingBlocks = []
+    self.attributedText = NSAttributedString()
     var snapshot = DocumentData(
       lines: [],
       sessionStartTime: nil,
       sessionEndTime: nil,
-      recordingBlocks: []
+      recordingBlocks: [],
+      attributedText: attributedText
     )
     snapshot.recordingBlocksWithAudio = []
     snapshotLock.lock()
@@ -243,7 +250,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   /// Initialize a transcript document with existing lines.
   nonisolated init(
     lines: [TranscriptLine], sessionStartTime: Date? = nil, sessionEndTime: Date? = nil,
-    recordingBlocks: [RecordingBlock] = []
+    recordingBlocks: [RecordingBlock] = [], attributedText: NSAttributedString = NSAttributedString()
   ) {
     let sortedLines = lines.sorted { $0.startTime < $1.startTime }
     for line in sortedLines {
@@ -254,12 +261,14 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     self.lines = sortedLines
     self.sessionStartTime = sessionStartTime
     self.sessionEndTime = sessionEndTime
+    self.attributedText = attributedText
     // Initialize cache directly (safe during initialization)
     var snapshot = DocumentData(
       lines: sortedLines,
       sessionStartTime: sessionStartTime,
       sessionEndTime: sessionEndTime,
-      recordingBlocks: recordingBlocks.compactMap { $0.codable }
+      recordingBlocks: recordingBlocks.compactMap { $0.codable },
+      attributedText: attributedText
     )
     snapshot.recordingBlocksWithAudio = recordingBlocks
     snapshotLock.lock()
@@ -283,9 +292,10 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
 
   /// Update the cached snapshot. Call this from the main actor whenever the document changes.
   @MainActor
-  private func updateCachedSnapshot() {
+  public func updateCachedSnapshot() {
     var snapshot = DocumentData(from: self)
     snapshot.recordingBlocksWithAudio = self.recordingBlocks
+    snapshot.attributedText = self.attributedText
     snapshotLock.lock()
     cachedSnapshot = snapshot
     snapshotLock.unlock()
@@ -334,7 +344,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       lines: snapshot.lines,
       sessionStartTime: snapshot.sessionStartTime,
       sessionEndTime: snapshot.sessionEndTime,
-      recordingBlocks: codableBlocks
+      recordingBlocks: codableBlocks,
+      attributedText: snapshot.attributedText
     )
 
     let jsonData = try JSONEncoder().encode(transcriptData)
@@ -784,6 +795,8 @@ extension TranscriptDocument {
     // Non-Codable: audio data for saving (excluded from JSON)
     var recordingBlocksWithAudio: [RecordingBlock]? = nil
 
+    var attributedText: NSAttributedString = NSAttributedString()
+
     @MainActor
     init(from document: TranscriptDocument) {
       self.lines = document.lines
@@ -792,12 +805,13 @@ extension TranscriptDocument {
       self.sessionEndTime = document.sessionEndTime
       self.version = 2
       self.recordingBlocksWithAudio = document.recordingBlocks
+      self.attributedText = document.attributedText
     }
 
     // Nonisolated initializer for use from background threads
     nonisolated init(
       lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?,
-      recordingBlocks: [RecordingBlock.CodableBlock]
+      recordingBlocks: [RecordingBlock.CodableBlock], attributedText: NSAttributedString = NSAttributedString()
     ) {
       self.lines = lines
       self.recordingBlocks = recordingBlocks
@@ -805,6 +819,7 @@ extension TranscriptDocument {
       self.sessionEndTime = sessionEndTime
       self.version = 2
       self.recordingBlocksWithAudio = nil
+      self.attributedText = attributedText
     }
   }
 }
@@ -818,6 +833,7 @@ extension TranscriptDocument.DocumentData: Codable {
     case sessionStartTime
     case sessionEndTime
     case version
+    case attributedText
   }
 
   func encode(to encoder: Encoder) throws {
@@ -827,6 +843,12 @@ extension TranscriptDocument.DocumentData: Codable {
     try container.encode(sessionStartTime, forKey: .sessionStartTime)
     try container.encode(sessionEndTime, forKey: .sessionEndTime)
     try container.encode(version, forKey: .version)
+    // Convert NSAttributedString to archived data to preserve all attributes (including custom ones)
+    let archivedData = try NSKeyedArchiver.archivedData(
+      withRootObject: attributedText,
+      requiringSecureCoding: false
+    )
+    try container.encode(archivedData, forKey: .attributedText)
     // recordingBlocksWithAudio is intentionally excluded
   }
 
@@ -839,5 +861,26 @@ extension TranscriptDocument.DocumentData: Codable {
     sessionEndTime = try container.decodeIfPresent(Date.self, forKey: .sessionEndTime)
     version = try container.decode(Int.self, forKey: .version)
     recordingBlocksWithAudio = nil  // Not loaded from JSON
+    // Decode archived data and convert back to NSAttributedString (preserves all attributes)
+    if let archivedData = try container.decodeIfPresent(Data.self, forKey: .attributedText) {
+      // Try NSKeyedUnarchiver first (preserves all custom attributes)
+      // Using deprecated API as it's the most reliable for NSAttributedString with custom attributes
+      if let unarchived = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(archivedData) as? NSAttributedString {
+        attributedText = unarchived
+      } else {
+        // Fallback: try legacy RTF format for backward compatibility
+        if let rtfString = try? NSAttributedString(
+          data: archivedData,
+          options: [.documentType: NSAttributedString.DocumentType.rtf],
+          documentAttributes: nil
+        ) {
+          attributedText = rtfString
+        } else {
+          attributedText = NSAttributedString()
+        }
+      }
+    } else {
+      attributedText = NSAttributedString()
+    }
   }
 }
