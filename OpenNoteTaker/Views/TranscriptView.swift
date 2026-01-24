@@ -12,7 +12,7 @@ let defaultFontSize: Double = 13.0
 /// A view that displays transcript text in an editable TextEditor.
 struct TranscriptView: View {
   @ObservedObject var document: TranscriptDocument
-  @State private var selectionRange: NSRange? = nil
+  @Binding var selectedLineIds: [UInt64]
   @State private var provenanceTextView: ProvenanceTextView? = nil
   @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
   @AppStorage("fontSize") private var fontSize: Double = defaultFontSize
@@ -28,7 +28,7 @@ struct TranscriptView: View {
 
   var body: some View {
     ProvenanceTrackingTextEditor(
-      selectionRange: $selectionRange,
+      selectedLineIds: $selectedLineIds,
       fontSize: fontSize,
       onFileDrag: onFileDrag,
       textViewRef: $provenanceTextView,
@@ -74,32 +74,13 @@ struct TranscriptView: View {
       let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
     else { return }
     for lineId in oldLineIds {
-      let range = getRangeForLineId(lineId: lineId)
+      let range = provenanceTextStorage.getRangeForLineId(lineId: lineId) ?? NSRange(location: 0, length: 0)
       provenanceTextStorage.removeAttribute(.backgroundColor, range: range)
     }
     for lineId in newLineIds {
-      let range = getRangeForLineId(lineId: lineId)
+      let range = provenanceTextStorage.getRangeForLineId(lineId: lineId) ?? NSRange(location: 0, length: 0)
       provenanceTextStorage.addAttributes([.backgroundColor: NSColor.yellow], range: range)
     }
-  }
-
-  private func getRangeForLineId(lineId: UInt64) -> NSRange {
-    guard
-      let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
-    else { return NSRange(location: 0, length: 0) }
-    var result: NSRange = NSRange(location: provenanceTextStorage.length, length: 0)
-    provenanceTextStorage.enumerateAttribute(
-      .transcriptLineMetadata,
-      in: NSRange(location: 0, length: provenanceTextStorage.length), options: []
-    ) { value, range, stop in
-      if let data = value as? Data, let existingMetadata = decodeMetadata(data),
-        existingMetadata.lineId == lineId
-      {
-        result = range
-        stop.pointee = true
-      }
-    }
-    return result
   }
 
   private func updateAttributedTextFromDocument() {
@@ -122,7 +103,7 @@ struct TranscriptView: View {
       if !(lineAlreadyExists[line.id] ?? false) {
         provenanceTextStorage?.append(newString)
       } else {
-        let oldRange = getRangeForLineId(lineId: line.id)
+        let oldRange = provenanceTextStorage?.getRangeForLineId(lineId: line.id) ?? NSRange(location: 0, length: 0)
         provenanceTextStorage?.replaceCharacters(in: oldRange, with: newString)
       }
 

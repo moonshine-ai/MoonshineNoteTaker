@@ -142,12 +142,45 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
 
     return nil
   }
+
+  func getLineIdsFromRanges(selectedRanges: [NSRange]) -> [UInt64] {
+    // No selection, return an empty result.
+    if selectedRanges.count == 1 && selectedRanges[0].length == 0 {
+      return []
+    }
+    var lineIds: [UInt64] = []
+    for selectedRange in selectedRanges {
+      backingStore.enumerateAttribute(.transcriptLineMetadata, in: selectedRange, options: []) {
+        lineValue, lineRange, _ in
+        if let lineValueJson = lineValue as? Data, let lineMetadata = decodeMetadata(lineValueJson) {
+          lineIds.append(lineMetadata.lineId)
+        }
+      }
+    }
+    return lineIds
+  }
+
+  func getRangeForLineId(lineId: UInt64) -> NSRange {
+    var result: NSRange = NSRange(location: backingStore.length, length: 0)
+    backingStore.enumerateAttribute(
+      .transcriptLineMetadata,
+      in: NSRange(location: 0, length: backingStore.length), options: []
+    ) { value, range, stop in
+      if let data = value as? Data, let existingMetadata = decodeMetadata(data),
+        existingMetadata.lineId == lineId
+      {
+        result = range
+        stop.pointee = true
+      }
+    }
+    return result
+  }
 }
 
 // MARK: - Text View with Custom Storage
 
 class ProvenanceTextView: NSTextView {
-  var onSelectionChange: ((NSRange) -> Void)?
+  var onSelectionChange: (([UInt64]) -> Void)?
   var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
   private let bottomPadding: CGFloat = 50
 
@@ -227,7 +260,14 @@ class ProvenanceTextView: NSTextView {
   ) {
     super.setSelectedRange(charRange, affinity: affinity, stillSelecting: stillSelecting)
     if !stillSelecting {
-      onSelectionChange?(charRange)
+        guard let provenanceTextStorage = self.textStorage as? ProvenanceTrackingTextStorage else { return }
+        let selectedRanges = self.selectedRanges.map { $0.rangeValue }
+        if selectedRanges.count == 1 && selectedRanges[0].length == 0 {
+            onSelectionChange?([])
+            return
+        }
+        let lineIds = provenanceTextStorage.getLineIdsFromRanges(selectedRanges: selectedRanges)
+        onSelectionChange?(lineIds)
     }
   }
 
@@ -246,7 +286,7 @@ class ProvenanceTextView: NSTextView {
       // don't reset it to I-beam
       return
     }
-    
+
     // Otherwise, allow normal NSTextView cursor behavior
     super.mouseMoved(with: event)
   }
@@ -310,7 +350,7 @@ class AutoScrollView: NSScrollView {
 
 struct ProvenanceTrackingTextEditor: NSViewRepresentable {
   // @Binding var attributedText: NSAttributedString
-  @Binding var selectionRange: NSRange?
+  @Binding var selectedLineIds: [UInt64]
   var fontSize: CGFloat
   var onFileDrag: ((NSDraggingInfo) -> Bool)?
   var textViewRef: Binding<ProvenanceTextView?>?
@@ -351,9 +391,9 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     textView.isVerticallyResizable = true
     textView.isHorizontallyResizable = false
 
-    textView.onSelectionChange = { newRange in
+    textView.onSelectionChange = { newLineIds in
       DispatchQueue.main.async {
-        self.selectionRange = newRange
+        self.selectedLineIds = newLineIds
       }
     }
     textView.onFileDrag = onFileDrag

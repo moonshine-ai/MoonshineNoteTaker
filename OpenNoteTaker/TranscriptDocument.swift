@@ -102,9 +102,10 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   private var playbackEndOffset: Int = 0
   private var currentPlaybackOffset: Int = 0
   private var reachedEnd: Bool = false
-  public var blockPlaybackRangeUpdates: Bool = false
 
   @Published var lineIdsNeedingRendering: [UInt64: Bool] = [:]
+  var selectedLineIds: [UInt64] = []
+  private var previousSelectedLineIds: [UInt64] = []
 
   /// Thread-safe cached snapshot for background thread access during saves
   private nonisolated(unsafe) var cachedSnapshot: DocumentData?
@@ -631,12 +632,14 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
 
   func getLineIdsForCurrentTime(currentGlobalOffset: Int) -> [UInt64] {
     let (currentBlockIndex, currentBlockOffset) = getBlockIndexAndOffset(index: currentGlobalOffset)
-    let currentTime: Date = recordingBlocks[currentBlockIndex].startTime + TimeInterval(Double(currentBlockOffset) / 48000.0)
+    let currentTime: Date =
+      recordingBlocks[currentBlockIndex].startTime
+      + TimeInterval(Double(currentBlockOffset) / 48000.0)
     var lineIds: [UInt64] = []
     for line in lines {
-        if currentTime >= line.startTime && currentTime <= line.endTime {
-            lineIds.append(line.id)
-        }
+      if currentTime >= line.startTime && currentTime <= line.endTime {
+        lineIds.append(line.id)
+      }
     }
     return lineIds
   }
@@ -669,9 +672,11 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         currentEndOffset = recordingBlocks[blockIndex].micAudio.count
       }
       let micStartOffset = min(currentStartOffset, recordingBlocks[blockIndex].micAudio.count)
-      let micEndOffset = max(min(currentEndOffset, recordingBlocks[blockIndex].micAudio.count), micStartOffset)
+      let micEndOffset = max(
+        min(currentEndOffset, recordingBlocks[blockIndex].micAudio.count), micStartOffset)
       let systemStartOffset = min(currentStartOffset, recordingBlocks[blockIndex].systemAudio.count)
-      let systemEndOffset = max(min(currentEndOffset, recordingBlocks[blockIndex].systemAudio.count), systemStartOffset)
+      let systemEndOffset = max(
+        min(currentEndOffset, recordingBlocks[blockIndex].systemAudio.count), systemStartOffset)
       micAudio.append(
         contentsOf: recordingBlocks[blockIndex].micAudio[micStartOffset..<micEndOffset])
       systemAudio.append(
@@ -706,9 +711,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   }
 
   func setPlaybackRange(startOffset: Int, endOffset: Int) {
-    if blockPlaybackRangeUpdates {
-      return
-    }
     playbackStartOffset = startOffset
     playbackEndOffset = endOffset
     currentPlaybackOffset = startOffset
@@ -720,26 +722,44 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     reachedEnd = false
   }
 
-  func setPlaybackRangeFromLineIds(lineIds: [UInt64]) {
+  func getTimeRangeFromLineIds(lineIds: [UInt64]) -> (Date?, Date?) {
+    if lineIds.count == 0 {
+      return (Date(), Date())
+    }
     var startTime: Date? = nil
     var endTime: Date? = nil
-    for line in lines {
-      if lineIds.contains(line.id) {
-        if startTime == nil || line.startTime < startTime! {
-          startTime = line.startTime
+    for lineId in lineIds {
+      if let index = lines.firstIndex(where: { $0.id == lineId }) {
+        if startTime == nil || lines[index].startTime < startTime! {
+          startTime = lines[index].startTime
         }
-        if endTime == nil || line.endTime > endTime! {
-          endTime = line.endTime
+        if endTime == nil || lines[index].endTime > endTime! {
+          endTime = lines[index].endTime
         }
       }
     }
+    return (startTime, endTime)
+  }
+
+  func setPlaybackRangeFromLineIds(lineIds: [UInt64]) {
+    if lineIds == previousSelectedLineIds {
+      return
+    }
+    previousSelectedLineIds = lineIds
+    if lineIds.isEmpty {
+      setPlaybackRange(startOffset: 0, endOffset: -1)
+      resetCurrentPlaybackOffset()
+      return
+    }
+    let (startTime, endTime) = getTimeRangeFromLineIds(lineIds: lineIds)
     if startTime == nil || endTime == nil {
       setPlaybackRange(startOffset: 0, endOffset: -1)
-    } else {
-      let startOffset = getGlobalOffsetFromTime(time: startTime!)
-      let endOffset = getGlobalOffsetFromTime(time: endTime!)
-      setPlaybackRange(startOffset: startOffset, endOffset: endOffset)
+      return
     }
+    let startOffset = getGlobalOffsetFromTime(time: startTime!)
+    let endOffset = getGlobalOffsetFromTime(time: endTime!)
+    setPlaybackRange(startOffset: startOffset, endOffset: endOffset)
+    resetCurrentPlaybackOffset()
   }
 
   func hasAudioData() -> Bool {
@@ -747,6 +767,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     defer { recordingBlocksLock.unlock() }
     return recordingBlocks.count > 0
   }
+
 }
 
 // MARK: - Codable Support for Persistence
