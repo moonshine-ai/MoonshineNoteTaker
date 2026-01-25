@@ -2,25 +2,36 @@ import SwiftUI
 import AppKit
 
 // MARK: - FocusedValue for Export Action
-struct ImportActionKey: FocusedValueKey {
+struct ImportAudioActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
 extension FocusedValues {
-    var importAction: (() -> Void)? {
-        get { self[ImportActionKey.self] }
-        set { self[ImportActionKey.self] = newValue }
+    var importAudioAction: (() -> Void)? {
+        get { self[ImportAudioActionKey.self] }
+        set { self[ImportAudioActionKey.self] = newValue }
     }
 }
 
-struct ExportActionKey: FocusedValueKey {
+struct ExportTextActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
 extension FocusedValues {
-    var exportAction: (() -> Void)? {
-        get { self[ExportActionKey.self] }
-        set { self[ExportActionKey.self] = newValue }
+    var exportTextAction: (() -> Void)? {
+        get { self[ExportTextActionKey.self] }
+        set { self[ExportTextActionKey.self] = newValue }
+    }
+}
+
+struct ExportAudioActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var exportAudioAction: (() -> Void)? {
+        get { self[ExportAudioActionKey.self] }
+        set { self[ExportAudioActionKey.self] = newValue }
     }
 }
 
@@ -48,8 +59,9 @@ struct OpenNoteTakerApp: App {
         .defaultSize(width: 480, height: 724)
         .commands {
             CommandGroup(replacing: .importExport) {
-                ImportCommand()
-                ExportCommand()
+                ImportAudioCommand()
+                ExportTextCommand()
+                ExportAudioCommand()
             }
             TextFormattingCommands()
         }
@@ -58,26 +70,37 @@ struct OpenNoteTakerApp: App {
 
 // MARK: - Export Command
 
-struct ImportCommand: View {
-    @FocusedValue(\.importAction) var importAction
+struct ImportAudioCommand: View {
+    @FocusedValue(\.importAudioAction) var importAudioAction
     
     var body: some View {
-        Button("Import...") {
-            importAction?()
+        Button("Import Audio...") {
+            importAudioAction?()
         }
         .keyboardShortcut("i", modifiers: [.command])
-        .disabled(importAction == nil)
+        .disabled(importAudioAction == nil)
     }
 }
 
-struct ExportCommand: View {
-    @FocusedValue(\.exportAction) var exportAction
+struct ExportTextCommand: View {
+    @FocusedValue(\.exportTextAction) var exportTextAction
     
     var body: some View {
-        Button("Export...") {
-            exportAction?()
+        Button("Export Text...") {
+            exportTextAction?()
         }
         .keyboardShortcut("e", modifiers: [.command])
-        .disabled(exportAction == nil)
+        .disabled(exportTextAction == nil)
+    }
+}
+
+struct ExportAudioCommand: View {
+    @FocusedValue(\.exportAudioAction) var exportAudioAction
+    
+    var body: some View {
+        Button("Export Audio...") {
+            exportAudioAction?()
+        }
+        .disabled(exportAudioAction == nil)
     }
 }

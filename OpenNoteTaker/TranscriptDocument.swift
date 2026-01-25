@@ -357,6 +357,17 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     return FileWrapper(directoryWithFileWrappers: fileWrappers)
   }
 
+  func exportAudioAsWAV(to url: URL) throws {
+    var audioData: [Float] = []
+    for block in self.recordingBlocks {
+      let mixedAudio = zip(block.micAudio, block.systemAudio).map { $0 + $1 }
+      audioData.append(contentsOf: mixedAudio)
+    }
+
+    let wavData = try Self.createWavData(audioData, sampleRate: 48000)
+    try wavData.write(to: url)
+  }
+
   /// Helper to create WAV file data (16KHz, 16-bit signed integer, mono)
   nonisolated private static func createWavData(_ samples: [Float], sampleRate: Int) throws -> Data
   {

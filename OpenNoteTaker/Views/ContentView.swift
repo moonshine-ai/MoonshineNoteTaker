@@ -189,11 +189,14 @@ struct ContentView: View {
       // Update the document's undo manager if it changes
       document.undoManager = newValue
     }
-    .focusedSceneValue(\.importAction) {
-      showImportFilePicker()
+    .focusedSceneValue(\.importAudioAction) {
+      showImportAudioFilePicker()
     }
-    .focusedSceneValue(\.exportAction) {
-      showExportFilePicker()
+    .focusedSceneValue(\.exportTextAction) {
+      showExportTextFilePicker()
+    }
+    .focusedSceneValue(\.exportAudioAction) {
+      showExportAudioFilePicker()
     }
   }
 
@@ -419,7 +422,7 @@ struct ContentView: View {
   }
 
   /// Show file picker for importing audio files
-  private func showImportFilePicker() {
+  private func showImportAudioFilePicker() {
     let panel = NSOpenPanel()
     panel.allowsMultipleSelection = true
     panel.canChooseFiles = true
@@ -439,7 +442,7 @@ struct ContentView: View {
   }
 
   /// Show file picker for exporting text as RTF
-  private func showExportFilePicker() {
+  private func showExportTextFilePicker() {
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.rtf]
     panel.nameFieldStringValue = document.title.isEmpty ? "Untitled" : document.title
@@ -471,6 +474,28 @@ struct ContentView: View {
       try rtfData.write(to: url)
     } catch {
       print("Failed to write RTF file: \(error.localizedDescription)")
+    }
+  }
+
+  private func showExportAudioFilePicker() {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.wav]
+    panel.nameFieldStringValue = document.title.isEmpty ? "Untitled" : document.title
+    panel.canCreateDirectories = true
+    
+    panel.begin { response in
+      if response == .OK, let url = panel.url {
+        exportAudioAsWAV(to: url)
+      }
+    }
+  }
+
+  /// Export the document's audio as WAV to the specified URL
+  private func exportAudioAsWAV(to url: URL) {
+    do {
+      try document.exportAudioAsWAV(to: url)
+    } catch {
+      print("Failed to export audio: \(error.localizedDescription)")
     }
   }
 }
