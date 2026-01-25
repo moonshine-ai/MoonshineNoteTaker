@@ -204,6 +204,9 @@ struct ContentView: View {
     .focusedSceneValue(\.exportCaptionsAction) {
       showExportCaptionsFilePicker()
     }
+    .focusedSceneValue(\.printAction) {
+      printDocument()
+    }
   }
 
   /// Handle file drags from the text view (NSDraggingInfo)
@@ -518,5 +521,16 @@ struct ContentView: View {
         try? document.exportCaptionsAsSRT(to: url)
       }
     }
+  }
+
+  private func printDocument() {
+    let content = NSTextView(frame: NSRect(x: 0, y: 0, width: 595, height: 842))
+    content.textStorage?.setAttributedString(document.attributedText)
+    content.isEditable = false
+    content.isSelectable = false
+    content.isRichText = true
+    
+    let printOperation = NSPrintOperation(view: content)
+    printOperation.run()
   }
 }

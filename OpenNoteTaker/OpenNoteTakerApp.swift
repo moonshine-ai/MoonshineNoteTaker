@@ -46,6 +46,17 @@ extension FocusedValues {
     }
 }
 
+struct PrintActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var printAction: (() -> Void)? {
+        get { self[PrintActionKey.self] }
+        set { self[PrintActionKey.self] = newValue }
+    }
+}
+
 @main
 struct OpenNoteTakerApp: App {
     @AppStorage("fontSize") private var fontSize: Double = 14.0
@@ -74,6 +85,9 @@ struct OpenNoteTakerApp: App {
                 ExportTextCommand()
                 ExportAudioCommand()
                 ExportCaptionsCommand()
+            }
+            CommandGroup(after: .printItem) {
+                PrintCommand()
             }
             TextFormattingCommands()
         }
@@ -125,5 +139,17 @@ struct ExportCaptionsCommand: View {
             exportCaptionsAction?()
         }
         .disabled(exportCaptionsAction == nil)
+    }
+}
+
+struct PrintCommand: View {
+    @FocusedValue(\.printAction) var printAction
+    
+    var body: some View {
+        Button("Print...") {
+            printAction?()
+        }
+        .keyboardShortcut("p", modifiers: [.command])
+        .disabled(printAction == nil)
     }
 }
