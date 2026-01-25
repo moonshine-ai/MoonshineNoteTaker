@@ -221,42 +221,19 @@ class AudioTranscriber {
 
   /// Handle transcript events and print to console.
   private func handleTranscriptEvent(_ event: TranscriptEvent) {
-    let beforeSuppressionDuration: Float = 0.5
-    let afterSuppressionDuration: Float = 1.0
     let audioType: SCStreamOutputType =
       (event.streamHandle == systemAudioStream?.getHandle()
         ? SCStreamOutputType.audio : SCStreamOutputType.microphone)
-    if audioType == SCStreamOutputType.audio {
-      lastSystemSegmentEndTime =
-        event.line.startTime + event.line.duration + afterSuppressionDuration
-    }
-    let isMicrophone = audioType == SCStreamOutputType.microphone
-    let isSystemAudio = audioType == SCStreamOutputType.audio
-    let lineStartTime = event.line.startTime
-    let lineEndTime = lineStartTime + event.line.duration
-    let isSystemSegmentActive =
-      lineStartTime >= lastSystemSegmentStartTime && lineEndTime <= lastSystemSegmentEndTime
     let line: MoonshineVoice.TranscriptLine = event.line
-    // Suppress echo by disabling text updates for the microphone stream while speech is
-    // detected on the system audio stream.
-    let actualText: String
-    if isMicrophone && isSystemSegmentActive {
-      actualText = ""
-    } else {
-      actualText = line.text
-    }
     switch event {
     case let lineStarted as LineStarted:
-      addLineToDocument(lineStarted.line, actualText: actualText, audioType: audioType)
-      if isSystemAudio {
-        lastSystemSegmentStartTime = lineStartTime - beforeSuppressionDuration
-      }
+      addLineToDocument(line, actualText: line.text, audioType: audioType)
 
     case let lineTextChanged as LineTextChanged:
-      updateDocumentForLine(lineTextChanged.line, actualText: actualText)
+      updateDocumentForLine(line, actualText: line.text)
 
     case let lineCompleted as LineCompleted:
-      updateDocumentForLine(lineCompleted.line, actualText: actualText + "\n")
+      updateDocumentForLine(line, actualText: line.text + "\n")
 
     case let error as TranscriptError:
       // Print errors
@@ -357,6 +334,8 @@ class AudioTranscriber {
 
       try? self.importedAudioStream?.start()
       self.transcriptDocument?.startNewRecordingBlock()
+      self.transcriptionStartTime = Date()
+
       while true {
         let importedAudioChunk: [Float] = importedAudioBufferLock.withLock {
           var chunk: [Float] = []
@@ -376,7 +355,7 @@ class AudioTranscriber {
           self.transcriptDocument?.addSystemAudio(importedAudioChunk)
           self.transcriptDocument?.addMicAudio(
             Array(repeating: 0.0, count: importedAudioChunk.count))
-          try? await Task.sleep(nanoseconds: 1_000_000_000)
+          try? await Task.sleep(nanoseconds: 250_000_000)
         } else {
           break
         }

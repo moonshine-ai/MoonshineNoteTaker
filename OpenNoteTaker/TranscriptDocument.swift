@@ -496,7 +496,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       throw CocoaError(.fileWriteUnknown)
     }
     var srtText = ""
-    let startTime = recordingBlocks[0].startTime
+    let startTime: Date = recordingBlocks[0].startTime
     var index = 1
     for line in lines {
       // Skip the dummy start line with id 0 and empty lines.
@@ -609,6 +609,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       lines.append(line)
     }
     lineIdsNeedingRendering[line.id] = true
+    normalizeLines()
     updateCachedSnapshot()
   }
 
@@ -621,6 +622,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       lines[index] = updatedLine
       lines.sort { $0.startTime < $1.startTime }
       lineIdsNeedingRendering[id] = true
+      normalizeLines()
       updateCachedSnapshot()
     }
   }
@@ -655,18 +657,68 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   func normalizeLines() {
     lines.sort { $0.startTime < $1.startTime }
     var idToLineMap: [UInt64: Int] = [:]
-    var newLines: [TranscriptLine] = []
+    var mergedLines: [TranscriptLine] = []
     // Merge together lines with the same id.
     for line in lines {
       if idToLineMap[line.id] == nil {
-        idToLineMap[line.id] = newLines.count
-        newLines.append(line)
+        idToLineMap[line.id] = mergedLines.count
+        mergedLines.append(line)
       } else {
         let index = idToLineMap[line.id]!
-        newLines[index].text += line.text
+        mergedLines[index].text += line.text
       }
     }
-    lines = newLines
+    var secondToLinesMap: [Int: [TranscriptLine]] = [:]
+    for line in mergedLines {
+      let floorStartTime = Int(line.startTime.timeIntervalSince1970)
+      let ceilEndTime = Int(line.endTime.timeIntervalSince1970)
+      for second in floorStartTime...ceilEndTime {
+        if secondToLinesMap[second] == nil {
+          secondToLinesMap[second] = []
+        }
+        secondToLinesMap[second]!.append(line)
+      }
+    }
+    var echoCancelledLines: [TranscriptLine] = []
+    var lineIndex = 0
+    for line in mergedLines {
+      if line.source != .microphone {
+        echoCancelledLines.append(line)
+        lineIndex += 1
+        continue
+      }
+      let floorStartTime = Int(line.startTime.timeIntervalSince1970)
+      let ceilEndTime = Int(line.endTime.timeIntervalSince1970)
+      var overlapsTooMuch = false
+      for second in floorStartTime...ceilEndTime {
+        for candidateLine in secondToLinesMap[second] ?? [] {
+          if candidateLine.source != .systemAudio || candidateLine.id == line.id
+            || candidateLine.text.isEmpty
+          {
+            continue
+          }
+          let overlapStart = max(
+            line.startTime.timeIntervalSince1970, candidateLine.startTime.timeIntervalSince1970)
+          let overlapEnd = min(
+            line.endTime.timeIntervalSince1970, candidateLine.endTime.timeIntervalSince1970)
+          let overlapDuration = max(0, overlapEnd - overlapStart)
+          let overlapProportion = overlapDuration / line.duration
+          // If more than 30% of the line is overlapped with a system audio line, cancel the line.
+          if overlapProportion > 0.3 {
+            overlapsTooMuch = true
+            break
+          }
+        }
+        if overlapsTooMuch {
+          break
+        }
+      }
+      if !overlapsTooMuch {
+        echoCancelledLines.append(line)
+      }
+    }
+
+    lines = echoCancelledLines
   }
 
   func startNewRecordingBlock() {
