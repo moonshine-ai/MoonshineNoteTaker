@@ -34,15 +34,15 @@ struct TranscriptView: View {
       textViewRef: $provenanceTextView,
       textStorageRef: $provenanceTextStorage,
       onTextViewReady: { textView in
-          if document.attributedText.length > 0 {
-              provenanceTextStorage?.append(document.attributedText)
-          } else {
-              // Needed for pre-release files that were saved before the attributedText was added.
-              updateAttributedTextFromDocument()
-          }
+        if document.attributedText.length > 0 {
+          provenanceTextStorage?.append(document.attributedText)
+        } else {
+          // Needed for pre-release files that were saved before the attributedText was added.
+          updateAttributedTextFromDocument()
+        }
       },
       onAttributedTextChange: { newAttributedText in
-        document.setAttributedText(newAttributedText)        
+        document.setAttributedText(newAttributedText)
       }
     )
     .font(Font.custom(fontFamily, size: fontSize))
@@ -74,7 +74,6 @@ struct TranscriptView: View {
 
   private func updateAttributedTextFromDocument() {
     let provenanceTextStorage = provenanceTextView?.textStorage as? ProvenanceTrackingTextStorage
-    let lastUpdatedRange: NSRange? = nil
     var lineAlreadyExists: [UInt64: Bool] = [:]
     let fullRange = NSRange(location: 0, length: provenanceTextStorage?.length ?? 0)
     provenanceTextStorage?.enumerateAttribute(
@@ -85,27 +84,34 @@ struct TranscriptView: View {
         lineAlreadyExists[existingMetadata.lineId] = true
       }
     }
-    for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
-      let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
-      let newString: NSAttributedString = NSAttributedString(
-        string: line.text, attributes: [.font: font, .transcriptLineMetadata: metadata])
-      if !(lineAlreadyExists[line.id] ?? false) {
-        provenanceTextStorage?.append(newString)
-      } else {
-        let oldRange =
-          provenanceTextStorage?.getRangeForLineId(lineId: line.id)
-          ?? NSRange(location: 0, length: 0)
-        provenanceTextStorage?.replaceCharacters(in: oldRange, with: newString)
+    guard let autoScrollView: AutoScrollView = provenanceTextView?.enclosingScrollView
+        as? AutoScrollView else { return }
+    let wasAtBottom = autoScrollView.isAtBottom
+    var anyLinesUpdated = false
+    NSAnimationContext.runAnimationGroup { context in
+      for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
+        anyLinesUpdated = true
+        let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
+        let newString: NSAttributedString = NSAttributedString(
+          string: line.text, attributes: [.font: font, .transcriptLineMetadata: metadata])
+        if !(lineAlreadyExists[line.id] ?? false) {
+          provenanceTextStorage?.append(newString)
+        } else {
+          let oldRange =
+            provenanceTextStorage?.getRangeForLineId(lineId: line.id)
+            ?? NSRange(location: 0, length: 0)
+          provenanceTextStorage?.replaceCharacters(in: oldRange, with: newString)
+        }
+        document.lineIdsNeedingRendering[line.id] = false
       }
 
-      document.lineIdsNeedingRendering[line.id] = false
-    }
-
-    if let autoScrollView: AutoScrollView = provenanceTextView?.enclosingScrollView
-      as? AutoScrollView, lastUpdatedRange != nil
-    {
-      if autoScrollView.isAtBottom {
-        provenanceTextView?.scrollRangeToVisible(lastUpdatedRange!)
+      if anyLinesUpdated
+      {
+        if wasAtBottom {
+            // Force layout before scrolling
+            provenanceTextView?.layoutManager?.ensureLayout(for: (provenanceTextView?.textContainer!)!)
+            autoScrollView.scrollToBottom()
+        }      
       }
     }
   }

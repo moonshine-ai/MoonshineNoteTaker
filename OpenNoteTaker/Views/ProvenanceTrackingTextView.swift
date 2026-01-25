@@ -67,7 +67,8 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
   {
     super.init()
     // Try to create an NSAttributedString from the pasteboard data
-    if let attributedString = NSAttributedString(pasteboardPropertyList: propertyList, ofType: type) {
+    if let attributedString = NSAttributedString(pasteboardPropertyList: propertyList, ofType: type)
+    {
       backingStore.setAttributedString(attributedString)
     } else if let stringData = propertyList as? Data,
       let string = String(data: stringData, encoding: .utf8)
@@ -314,13 +315,6 @@ class ProvenanceTextView: NSTextView {
     }
   }
 
-  override func layout() {
-    super.layout()
-    DispatchQueue.main.async { [weak self] in
-      self?.adjustFrameForBottomPadding()
-    }
-  }
-
   override func mouseMoved(with event: NSEvent) {
     // If a higher-level view (like a SwiftUI button) has already set a cursor,
     // don't override it. Check if current cursor is not I-beam.
@@ -338,22 +332,6 @@ class ProvenanceTextView: NSTextView {
     super.didChangeText()
     if let onAttributedTextChange = onAttributedTextChange {
       onAttributedTextChange(self.attributedString())
-    }
-  }
-
-  private func adjustFrameForBottomPadding() {
-    guard let textContainer = self.textContainer,
-      let layoutManager = textContainer.layoutManager
-    else { return }
-
-    // Calculate the actual content height
-    let usedRect = layoutManager.usedRect(for: textContainer)
-    let contentHeight = usedRect.height
-
-    // Set frame height to content height + bottom padding
-    let newHeight = contentHeight + bottomPadding
-    if abs(frame.height - newHeight) > 0.1 {
-      setFrameSize(NSSize(width: frame.width, height: newHeight))
     }
   }
 }
@@ -382,17 +360,21 @@ class AutoScrollView: NSScrollView {
     return false
   }
 
-  public var isAtBottom: Bool {
-    guard let docView = documentView else { return true }
-    let visibleHeight = contentView.bounds.height
-    let contentHeight = docView.frame.height
-    let scrollY = contentView.bounds.origin.y
+  var isAtBottom: Bool {
+    let clipView = contentView
+    let documentHeight = documentView?.frame.height ?? 0
+    let scrollPosition = clipView.bounds.origin.y + clipView.bounds.height
+    return scrollPosition >= documentHeight - 50
+  }
 
-    let tolerance = 100.0
-    let docBottom = (scrollY + visibleHeight)
-    let scrollBottomZone = contentHeight - tolerance
-    let result = (docBottom >= scrollBottomZone)
-    return result
+  func scrollToBottom() {
+    guard let documentView = documentView else { return }
+    let newOrigin = NSPoint(
+      x: 0,
+      y: documentView.frame.height - contentView.bounds.height
+    )
+    contentView.setBoundsOrigin(newOrigin)
+    reflectScrolledClipView(contentView)
   }
 }
 
