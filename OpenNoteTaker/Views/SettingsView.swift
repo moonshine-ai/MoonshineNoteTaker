@@ -33,41 +33,79 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
-            Section("Font Settings") {
-                Picker("Font Family", selection: $fontFamily) {
-                    ForEach(availableFontFamilies, id: \.self) { family in
-                        Text(family).tag(family)
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Font Family")
+                            .frame(width: 120, alignment: .leading)
+                        Picker("", selection: $fontFamily) {
+                            ForEach(availableFontFamilies, id: \.self) { family in
+                                Text(family).tag(family)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    HStack {
+                        Text("Font Size")
+                            .frame(width: 120, alignment: .leading)
+                        HStack(spacing: 8) {
+                            Slider(value: $fontSize, in: 8...72, step: 1)
+                            Text("\(Int(fontSize))")
+                                .frame(width: 35, alignment: .trailing)
+                                .monospacedDigit()
+                        }
+                    }
+                    
+                    HStack {
+                        Text("Font Color")
+                            .frame(width: 120, alignment: .leading)
+                        ColorPicker("", selection: Binding(
+                            get: { fontColor },
+                            set: { fontColorData = $0.toData() }
+                        ))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                
-                HStack {
-                    Text("Font Size")
-                    Spacer()
-                    Slider(value: $fontSize, in: 8...72, step: 1)
-                    Text("\(Int(fontSize))")
-                        .frame(width: 40)
+                .padding(.vertical, 4)
+            } header: {
+                Text("Font Settings")
+                    .font(.headline)
+            }
+            
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Background Color")
+                            .frame(width: 120, alignment: .leading)
+                        ColorPicker("", selection: Binding(
+                            get: { backgroundColor },
+                            set: { backgroundColorData = $0.toData() }
+                        ))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
-                
-                ColorPicker("Font Color", selection: Binding(
-                    get: { fontColor },
-                    set: { fontColorData = $0.toData() }
-                ))
+                .padding(.vertical, 4)
+            } header: {
+                Text("Appearance")
+                    .font(.headline)
             }
             
-            Section("Appearance") {
-                ColorPicker("Background Color", selection: Binding(
-                    get: { backgroundColor },
-                    set: { backgroundColorData = $0.toData() }
-                ))
-            }
-            
-            Section("Audio Recording") {
-                Toggle("Record Microphone Audio", isOn: $recordMicAudio)
-                Toggle("Record System Audio", isOn: $recordSystemAudio)
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Record Microphone Audio", isOn: $recordMicAudio)
+                    Toggle("Record System Audio", isOn: $recordSystemAudio)
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Audio Recording")
+                    .font(.headline)
             }
         }
-        .padding()
-        .frame(width: 500, height: 400)
+        .formStyle(.grouped)
+        .padding(20)
+        .frame(width: 520, height: 420)
     }
 }
 
