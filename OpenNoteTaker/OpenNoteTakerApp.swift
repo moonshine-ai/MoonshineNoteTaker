@@ -1,11 +1,17 @@
 import SwiftUI
 import AppKit
 
-extension Notification.Name {
-    static let importFiles = Notification.Name("importFiles")
+// MARK: - FocusedValue for Export Action
+struct ImportActionKey: FocusedValueKey {
+    typealias Value = () -> Void
 }
 
-// MARK: - FocusedValue for Export Action
+extension FocusedValues {
+    var importAction: (() -> Void)? {
+        get { self[ImportActionKey.self] }
+        set { self[ImportActionKey.self] = newValue }
+    }
+}
 
 struct ExportActionKey: FocusedValueKey {
     typealias Value = () -> Void
@@ -42,11 +48,7 @@ struct OpenNoteTakerApp: App {
         .defaultSize(width: 480, height: 724)
         .commands {
             CommandGroup(replacing: .importExport) {
-                Button("Import...") {
-                    NotificationCenter.default.post(name: .importFiles, object: nil)
-                }
-                .keyboardShortcut("i", modifiers: .command)
-                
+                ImportCommand()
                 ExportCommand()
             }
             TextFormattingCommands()
@@ -55,6 +57,18 @@ struct OpenNoteTakerApp: App {
 }
 
 // MARK: - Export Command
+
+struct ImportCommand: View {
+    @FocusedValue(\.importAction) var importAction
+    
+    var body: some View {
+        Button("Import...") {
+            importAction?()
+        }
+        .keyboardShortcut("i", modifiers: [.command])
+        .disabled(importAction == nil)
+    }
+}
 
 struct ExportCommand: View {
     @FocusedValue(\.exportAction) var exportAction

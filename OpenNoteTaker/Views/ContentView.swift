@@ -189,7 +189,7 @@ struct ContentView: View {
       // Update the document's undo manager if it changes
       document.undoManager = newValue
     }
-    .onReceive(NotificationCenter.default.publisher(for: .importFiles)) { _ in
+    .focusedSceneValue(\.importAction) {
       showImportFilePicker()
     }
     .focusedSceneValue(\.exportAction) {
