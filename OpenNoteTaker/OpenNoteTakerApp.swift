@@ -76,7 +76,6 @@ struct OpenNoteTakerApp: App {
         }) { configuration in
             ContentView(document: configuration.document)
                 .frame(minWidth: 100, minHeight: 100)
-                .background(.white)
         }
         .defaultSize(width: 480, height: 724)
         .commands {
@@ -90,6 +89,10 @@ struct OpenNoteTakerApp: App {
                 PrintCommand()
             }
             TextFormattingCommands()
+        }
+        
+        Settings {
+            SettingsView()
         }
     }
 }

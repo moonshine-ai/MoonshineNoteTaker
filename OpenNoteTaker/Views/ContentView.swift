@@ -24,9 +24,15 @@ struct ContentView: View {
   @State private var extractedAudioBuffers: [URL: [Float]] = [:]
 
   @StateObject var screenRecorder = ScreenRecorder()
+  private var wantAudioCapture: Bool {
+    screenRecorder.isAudioCaptureEnabled || screenRecorder.isMicCaptureEnabled
+  }
   @StateObject var audioPlayer: AudioPlayer = AudioPlayer()
 
   @AppStorage("fontSize") private var fontSize: Double = 14.0
+  @AppStorage("backgroundColor") private var backgroundColorData: Data = Color.white.toData()
+  @AppStorage("recordMicAudio") private var recordMicAudio: Bool = false
+  @AppStorage("recordSystemAudio") private var recordSystemAudio: Bool = true
 
   @State private var pausedPlayingIds: [UInt64] = []
   @State private var selectedLineIds: [UInt64] = []
@@ -49,9 +55,9 @@ struct ContentView: View {
               if screenRecorder.isRunning {
                 await screenRecorder.stop()
               } else {
-                // Enable both audio sources before starting
-                screenRecorder.isAudioCaptureEnabled = true
-                screenRecorder.isMicCaptureEnabled = true
+                // Enable audio sources based on settings
+                screenRecorder.isAudioCaptureEnabled = recordSystemAudio
+                screenRecorder.isMicCaptureEnabled = recordMicAudio
                 await screenRecorder.start()
               }
             }
@@ -65,11 +71,20 @@ struct ContentView: View {
               .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
           }
           .buttonStyle(.plain)
-          .disabled(audioPlayer.isPlaying)
-          .opacity(audioPlayer.isPlaying ? 0.5 : 1.0)
+          .disabled(
+            audioPlayer.isPlaying
+              || !wantAudioCapture
+          )
+          .opacity(
+            (audioPlayer.isPlaying
+              || !wantAudioCapture)
+              ? 0.5 : 1.0
+          )
           .onHover { hovering in
             if hovering {
-              if audioPlayer.isPlaying {
+              if audioPlayer.isPlaying
+                || !wantAudioCapture
+              {
                 NSCursor.operationNotAllowed.push()
               } else {
                 NSCursor.pointingHand.push()
@@ -81,7 +96,9 @@ struct ContentView: View {
           .help(
             audioPlayer.isPlaying
               ? "Playback in progress"
-              : (screenRecorder.isRunning ? "Stop Recording" : "Start Recording")
+              : !wantAudioCapture
+                ? "No audio recording enabled in settings"
+                : (screenRecorder.isRunning ? "Stop Recording" : "Start Recording")
           )
           .padding(.bottom, 10)
           Button(action: {
@@ -130,7 +147,7 @@ struct ContentView: View {
         }
       }
       // Unauthorized overlay
-      if isUnauthorized {
+      if (isUnauthorized || true) && wantAudioCapture {
         VStack {
           Spacer()
           VStack {
@@ -149,7 +166,7 @@ struct ContentView: View {
         }
       }
     }
-    .background(Color.white)
+    .background(backgroundColor)
     .onDrop(of: [UTType.item], isTargeted: nil) { providers in
       handleFileDrop(providers: providers)
     }
@@ -159,6 +176,9 @@ struct ContentView: View {
 
       // Connect the document from DocumentGroup to ScreenRecorder
       screenRecorder.transcriptDocument = document
+      // Apply initial audio settings
+      screenRecorder.isAudioCaptureEnabled = recordSystemAudio
+      screenRecorder.isMicCaptureEnabled = recordMicAudio
       Task {
         let canRecord = await screenRecorder.canRecord
         if !canRecord {
@@ -206,6 +226,12 @@ struct ContentView: View {
     }
     .focusedSceneValue(\.printAction) {
       printDocument()
+    }
+    .onChange(of: recordSystemAudio) { oldValue, newValue in
+      screenRecorder.isAudioCaptureEnabled = newValue
+    }
+    .onChange(of: recordMicAudio) { oldValue, newValue in
+      screenRecorder.isMicCaptureEnabled = newValue
     }
   }
 
@@ -529,8 +555,12 @@ struct ContentView: View {
     content.isEditable = false
     content.isSelectable = false
     content.isRichText = true
-    
+
     let printOperation = NSPrintOperation(view: content)
     printOperation.run()
+  }
+
+  private var backgroundColor: Color {
+    Color.fromData(backgroundColorData) ?? .white
   }
 }

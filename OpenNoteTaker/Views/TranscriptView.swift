@@ -17,12 +17,18 @@ struct TranscriptView: View {
   @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
   @AppStorage("fontSize") private var fontSize: Double = defaultFontSize
   @AppStorage("fontFamily") private var fontFamily: String = "System"
+  @AppStorage("fontColor") private var fontColorData: Data = Color.black.toData()
+  
   private var font: NSFont {
     if fontFamily == "System" {
       return NSFont.systemFont(ofSize: fontSize)
     } else {
       return NSFont(name: fontFamily, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
     }
+  }
+  
+  private var fontColor: NSColor {
+    Color.fromData(fontColorData)?.toNSColor() ?? .black
   }
   var onFileDrag: ((NSDraggingInfo) -> Bool)?
 
@@ -34,6 +40,8 @@ struct TranscriptView: View {
       textViewRef: $provenanceTextView,
       textStorageRef: $provenanceTextStorage,
       onTextViewReady: { textView in
+        // Set default typing attributes including font color
+        textView.typingAttributes[.foregroundColor] = fontColor
         if document.attributedText.length > 0 {
           provenanceTextStorage?.append(document.attributedText)
         } else {
@@ -52,6 +60,10 @@ struct TranscriptView: View {
     }
     .onChange(of: document.playingLineIds) { oldLineIds, newLineIds in
       updatePlaybackHighlight(oldLineIds: oldLineIds, newLineIds: newLineIds)
+    }
+    .onChange(of: fontColorData) {
+      // Update typing attributes when font color changes
+      provenanceTextView?.typingAttributes[.foregroundColor] = fontColor
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
@@ -93,7 +105,7 @@ struct TranscriptView: View {
         anyLinesUpdated = true
         let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
         let newString: NSAttributedString = NSAttributedString(
-          string: line.text, attributes: [.font: font, .transcriptLineMetadata: metadata])
+          string: line.text, attributes: [.font: font, .foregroundColor: fontColor, .transcriptLineMetadata: metadata])
         if !(lineAlreadyExists[line.id] ?? false) {
           provenanceTextStorage?.append(newString)
         } else {
