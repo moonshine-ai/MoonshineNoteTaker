@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage("backgroundColor") private var backgroundColorData: Data = Color.white.toData()
     @AppStorage("recordMicAudio") private var recordMicAudio: Bool = false
     @AppStorage("recordSystemAudio") private var recordSystemAudio: Bool = true
+    @AppStorage("enableEchoCancellation") private var enableEchoCancellation: Bool = true
     
     private var fontColor: Color {
         Color.fromData(fontColorData) ?? .black
@@ -96,6 +97,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Record Microphone Audio", isOn: $recordMicAudio)
                     Toggle("Record System Audio", isOn: $recordSystemAudio)
+                    Toggle("Enable Echo Cancellation", isOn: $enableEchoCancellation)
                 }
                 .padding(.vertical, 4)
             } header: {
@@ -105,7 +107,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 520, height: 420)
+        .frame(width: 520, height: 500)
     }
 }
 

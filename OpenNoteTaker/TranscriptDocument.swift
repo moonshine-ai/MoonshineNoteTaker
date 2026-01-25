@@ -124,6 +124,12 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
 
   private nonisolated(unsafe) var undoManagerValue: UndoManager?
 
+  /// Echo cancellation setting (defaults to true)
+  @MainActor
+  private var enableEchoCancellation: Bool {
+    UserDefaults.standard.object(forKey: "enableEchoCancellation") as? Bool ?? true
+  }
+
   // MARK: - ReferenceFileDocument Conformance
 
   static var readableContentTypes: [UTType] {
@@ -668,57 +674,62 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
         mergedLines[index].text += line.text
       }
     }
-    var secondToLinesMap: [Int: [TranscriptLine]] = [:]
-    for line in mergedLines {
-      let floorStartTime = Int(line.startTime.timeIntervalSince1970)
-      let ceilEndTime = Int(line.endTime.timeIntervalSince1970)
-      for second in floorStartTime...ceilEndTime {
-        if secondToLinesMap[second] == nil {
-          secondToLinesMap[second] = []
-        }
-        secondToLinesMap[second]!.append(line)
-      }
-    }
-    var echoCancelledLines: [TranscriptLine] = []
-    var lineIndex = 0
-    for line in mergedLines {
-      if line.source != .microphone {
-        echoCancelledLines.append(line)
-        lineIndex += 1
-        continue
-      }
-      let floorStartTime = Int(line.startTime.timeIntervalSince1970)
-      let ceilEndTime = Int(line.endTime.timeIntervalSince1970)
-      var overlapsTooMuch = false
-      for second in floorStartTime...ceilEndTime {
-        for candidateLine in secondToLinesMap[second] ?? [] {
-          if candidateLine.source != .systemAudio || candidateLine.id == line.id
-            || candidateLine.text.isEmpty
-          {
-            continue
+    // Only perform overlap checking if echo cancellation is enabled
+    if enableEchoCancellation {
+      var secondToLinesMap: [Int: [TranscriptLine]] = [:]
+      for line in mergedLines {
+        let floorStartTime = Int(line.startTime.timeIntervalSince1970)
+        let ceilEndTime = Int(line.endTime.timeIntervalSince1970)
+        for second in floorStartTime...ceilEndTime {
+          if secondToLinesMap[second] == nil {
+            secondToLinesMap[second] = []
           }
-          let overlapStart = max(
-            line.startTime.timeIntervalSince1970, candidateLine.startTime.timeIntervalSince1970)
-          let overlapEnd = min(
-            line.endTime.timeIntervalSince1970, candidateLine.endTime.timeIntervalSince1970)
-          let overlapDuration = max(0, overlapEnd - overlapStart)
-          let overlapProportion = overlapDuration / line.duration
-          // If more than 30% of the line is overlapped with a system audio line, cancel the line.
-          if overlapProportion > 0.3 {
-            overlapsTooMuch = true
+          secondToLinesMap[second]!.append(line)
+        }
+      }
+      var echoCancelledLines: [TranscriptLine] = []
+      var lineIndex = 0
+      for line in mergedLines {
+        if line.source != .microphone {
+          echoCancelledLines.append(line)
+          lineIndex += 1
+          continue
+        }
+        let floorStartTime = Int(line.startTime.timeIntervalSince1970)
+        let ceilEndTime = Int(line.endTime.timeIntervalSince1970)
+        var overlapsTooMuch = false
+        for second in floorStartTime...ceilEndTime {
+          for candidateLine in secondToLinesMap[second] ?? [] {
+            if candidateLine.source != .systemAudio || candidateLine.id == line.id
+              || candidateLine.text.isEmpty
+            {
+              continue
+            }
+            let overlapStart = max(
+              line.startTime.timeIntervalSince1970, candidateLine.startTime.timeIntervalSince1970)
+            let overlapEnd = min(
+              line.endTime.timeIntervalSince1970, candidateLine.endTime.timeIntervalSince1970)
+            let overlapDuration = max(0, overlapEnd - overlapStart)
+            let overlapProportion = overlapDuration / line.duration
+            // If more than 30% of the line is overlapped with a system audio line, cancel the line.
+            if overlapProportion > 0.3 {
+              overlapsTooMuch = true
+              break
+            }
+          }
+          if overlapsTooMuch {
             break
           }
         }
-        if overlapsTooMuch {
-          break
+        if !overlapsTooMuch {
+          echoCancelledLines.append(line)
         }
       }
-      if !overlapsTooMuch {
-        echoCancelledLines.append(line)
-      }
-    }
 
-    lines = echoCancelledLines
+      lines = echoCancelledLines
+    } else {
+      lines = mergedLines
+    }
   }
 
   func startNewRecordingBlock() {
