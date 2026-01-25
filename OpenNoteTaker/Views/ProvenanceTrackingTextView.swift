@@ -218,7 +218,7 @@ class ProvenanceTextView: NSTextView {
   var onSelectionChange: (([UInt64]) -> Void)?
   var onFileDrag: ((NSDraggingInfo) -> Bool)?  // Callback for file drags
   var onAttributedTextChange: ((NSAttributedString) -> Void)?
-  private let bottomPadding: CGFloat = 50
+  static let bottomPadding: CGFloat = 60
 
   convenience init(frame: NSRect, textStorage: ProvenanceTrackingTextStorage) {
     let layoutManager = NSLayoutManager()
@@ -371,7 +371,7 @@ class AutoScrollView: NSScrollView {
     guard let documentView = documentView else { return }
     let newOrigin = NSPoint(
       x: 0,
-      y: documentView.frame.height - contentView.bounds.height
+      y: (documentView.frame.height - contentView.bounds.height) + ProvenanceTextView.bottomPadding
     )
     contentView.setBoundsOrigin(newOrigin)
     reflectScrolledClipView(contentView)
@@ -423,11 +423,13 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     scrollView.hasHorizontalScroller = false
     scrollView.autohidesScrollers = true
     scrollView.autoresizingMask = [.width, .height]
+    scrollView.automaticallyAdjustsContentInsets = false
+    scrollView.contentInsets = NSEdgeInsets(
+      top: 0, left: 0, bottom: ProvenanceTextView.bottomPadding, right: 0)
 
     textView.autoresizingMask = [.width]
     textView.isVerticallyResizable = true
     textView.isHorizontallyResizable = false
-
     textView.onSelectionChange = { newLineIds in
       DispatchQueue.main.async {
         self.selectedLineIds = newLineIds
