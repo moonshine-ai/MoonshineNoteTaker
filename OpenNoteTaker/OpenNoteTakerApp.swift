@@ -35,6 +35,17 @@ extension FocusedValues {
     }
 }
 
+struct ExportCaptionsActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var exportCaptionsAction: (() -> Void)? {
+        get { self[ExportCaptionsActionKey.self] }
+        set { self[ExportCaptionsActionKey.self] = newValue }
+    }
+}
+
 @main
 struct OpenNoteTakerApp: App {
     @AppStorage("fontSize") private var fontSize: Double = 14.0
@@ -62,6 +73,7 @@ struct OpenNoteTakerApp: App {
                 ImportAudioCommand()
                 ExportTextCommand()
                 ExportAudioCommand()
+                ExportCaptionsCommand()
             }
             TextFormattingCommands()
         }
@@ -102,5 +114,16 @@ struct ExportAudioCommand: View {
             exportAudioAction?()
         }
         .disabled(exportAudioAction == nil)
+    }
+}
+
+struct ExportCaptionsCommand: View {
+    @FocusedValue(\.exportCaptionsAction) var exportCaptionsAction
+    
+    var body: some View {
+        Button("Export Captions...") {
+            exportCaptionsAction?()
+        }
+        .disabled(exportCaptionsAction == nil)
     }
 }

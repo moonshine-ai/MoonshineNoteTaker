@@ -250,7 +250,8 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   /// Initialize a transcript document with existing lines.
   nonisolated init(
     lines: [TranscriptLine], sessionStartTime: Date? = nil, sessionEndTime: Date? = nil,
-    recordingBlocks: [RecordingBlock] = [], attributedText: NSAttributedString = NSAttributedString()
+    recordingBlocks: [RecordingBlock] = [],
+    attributedText: NSAttributedString = NSAttributedString()
   ) {
     let sortedLines = lines.sorted { $0.startTime < $1.startTime }
     for line in sortedLines {
@@ -488,6 +489,78 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       return floatSamples
     }
     return samples
+  }
+
+  func exportCaptionsAsSRT(to url: URL) throws {
+    guard recordingBlocks.count > 0 else {
+      throw CocoaError(.fileWriteUnknown)
+    }
+    var srtText = ""
+    let startTime = recordingBlocks[0].startTime
+    var index = 1
+    for line in lines {
+      // Skip the dummy start line with id 0 and empty lines.
+      if line.id == 0 || line.text.isEmpty {
+        continue
+      }
+      let lineStartRelativeTime = line.startTime.timeIntervalSince(startTime)
+      let lineEndRelativeTime = line.startTime.addingTimeInterval(line.duration).timeIntervalSince(
+        startTime)
+      let lineStartHours = Int(lineStartRelativeTime / 3600)
+      let lineStartMinutes = Int((lineStartRelativeTime.truncatingRemainder(dividingBy: 3600)) / 60)
+      let lineStartSeconds = Int(lineStartRelativeTime.truncatingRemainder(dividingBy: 60))
+      let lineStartMilliseconds = Int((lineStartRelativeTime - floor(lineStartRelativeTime)) * 1000)
+      let lineEndHours = Int(lineEndRelativeTime / 3600)
+      let lineEndMinutes = Int((lineEndRelativeTime.truncatingRemainder(dividingBy: 3600)) / 60)
+      let lineEndSeconds = Int(lineEndRelativeTime.truncatingRemainder(dividingBy: 60))
+      let lineEndMilliseconds = Int((lineEndRelativeTime - floor(lineEndRelativeTime)) * 1000)
+      srtText += "\(index)\n"
+      srtText +=
+        String(
+          format: "%02d:%02d:%02d,%03d", lineStartHours, lineStartMinutes, lineStartSeconds,
+          lineStartMilliseconds)
+      srtText += " --> "
+      srtText +=
+        String(
+          format: "%02d:%02d:%02d,%03d", lineEndHours, lineEndMinutes, lineEndSeconds,
+          lineEndMilliseconds) + "\n"
+      srtText += "\(line.text)\n"
+      index += 1
+    }
+    try srtText.write(to: url, atomically: true, encoding: .utf8)
+  }
+
+  func setAttributedText(_ newAttributedText: NSAttributedString) {
+    // Ensure each line's text is updated to match the new attributed text. This is necessary because the text view may have been edited directly, and we need to update the lines array to reflect the changes.
+    let lineIndexesById: [UInt64: Int] = lines.enumerated().reduce(into: [:]) { result, element in
+      result[element.element.id] = element.offset
+    }
+    var foundLineIndexes: [Int: Bool] = Dictionary(
+      uniqueKeysWithValues: (0..<lines.count).map { ($0, false) })
+    newAttributedText.enumerateAttributes(
+      in: NSRange(location: 0, length: newAttributedText.length), options: []
+    ) { attributes, range, stop in
+      if let metadata = attributes[.transcriptLineMetadata] as? Data,
+        let lineMetadata = decodeMetadata(metadata)
+      {
+        if let index = lineIndexesById[lineMetadata.lineId] {
+          let newText = newAttributedText.attributedSubstring(from: range).string
+          lines[index].text = newText
+          foundLineIndexes[index] = true
+        }
+      }
+    }
+    for (lineIndex, present) in foundLineIndexes {
+      if !present {
+        var updatedLine = lines[lineIndex]
+        updatedLine.text = ""
+      }
+    }
+
+    attributedText = newAttributedText
+    DispatchQueue.main.async {
+      self.updateCachedSnapshot()
+    }
   }
 
   /// Total duration of the recording in seconds.
@@ -822,7 +895,8 @@ extension TranscriptDocument {
     // Nonisolated initializer for use from background threads
     nonisolated init(
       lines: [TranscriptLine], sessionStartTime: Date?, sessionEndTime: Date?,
-      recordingBlocks: [RecordingBlock.CodableBlock], attributedText: NSAttributedString = NSAttributedString()
+      recordingBlocks: [RecordingBlock.CodableBlock],
+      attributedText: NSAttributedString = NSAttributedString()
     ) {
       self.lines = lines
       self.recordingBlocks = recordingBlocks
@@ -876,7 +950,9 @@ extension TranscriptDocument.DocumentData: Codable {
     if let archivedData = try container.decodeIfPresent(Data.self, forKey: .attributedText) {
       // Try NSKeyedUnarchiver first (preserves all custom attributes)
       // Using deprecated API as it's the most reliable for NSAttributedString with custom attributes
-      if let unarchived = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(archivedData) as? NSAttributedString {
+      if let unarchived = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(archivedData)
+        as? NSAttributedString
+      {
         attributedText = unarchived
       } else {
         // Fallback: try legacy RTF format for backward compatibility
@@ -893,5 +969,57 @@ extension TranscriptDocument.DocumentData: Codable {
     } else {
       attributedText = NSAttributedString()
     }
+  }
+}
+
+extension String {
+  func differenceRanges(from old: String) -> (
+    insertions: [Range<String.Index>], deletions: [Range<String.Index>]
+  ) {
+    let diff = self.difference(from: old)
+
+    var insertionOffsets: [Int] = []
+    var deletionOffsets: [Int] = []
+
+    for change in diff {
+      switch change {
+      case .insert(let offset, _, _):
+        insertionOffsets.append(offset)
+      case .remove(let offset, _, _):
+        deletionOffsets.append(offset)
+      }
+    }
+
+    // Convert to contiguous ranges
+    func offsetsToRanges(_ offsets: [Int], in string: String) -> [Range<String.Index>] {
+      guard !offsets.isEmpty else { return [] }
+      let sorted = offsets.sorted()
+      var ranges: [Range<String.Index>] = []
+      var start = sorted[0]
+      var end = start
+
+      for offset in sorted.dropFirst() {
+        if offset == end + 1 {
+          end = offset
+        } else {
+          let startIdx = string.index(string.startIndex, offsetBy: start)
+          let endIdx = string.index(string.startIndex, offsetBy: end + 1)
+          ranges.append(startIdx..<endIdx)
+          start = offset
+          end = offset
+        }
+      }
+      // Final range
+      let startIdx = string.index(string.startIndex, offsetBy: start)
+      let endIdx = string.index(string.startIndex, offsetBy: end + 1)
+      ranges.append(startIdx..<endIdx)
+
+      return ranges
+    }
+
+    return (
+      offsetsToRanges(insertionOffsets, in: self),
+      offsetsToRanges(deletionOffsets, in: old)
+    )
   }
 }

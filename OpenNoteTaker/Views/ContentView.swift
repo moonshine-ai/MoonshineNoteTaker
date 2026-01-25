@@ -34,8 +34,11 @@ struct ContentView: View {
   var body: some View {
     ZStack {
       // Main content area - transcript view fills entire space
-      TranscriptView(document: document, selectedLineIds: $selectedLineIds, onFileDrag: handleFileDragFromTextView)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      TranscriptView(
+        document: document, selectedLineIds: $selectedLineIds,
+        onFileDrag: handleFileDragFromTextView
+      )
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
 
       // Floating recording button overlay at bottom center
       VStack {
@@ -197,6 +200,9 @@ struct ContentView: View {
     }
     .focusedSceneValue(\.exportAudioAction) {
       showExportAudioFilePicker()
+    }
+    .focusedSceneValue(\.exportCaptionsAction) {
+      showExportCaptionsFilePicker()
     }
   }
 
@@ -428,7 +434,7 @@ struct ContentView: View {
     panel.canChooseFiles = true
     panel.canChooseDirectories = false
     panel.allowedContentTypes = []  // Allow all file types
-    
+
     panel.begin { response in
       if response == .OK {
         // Extract audio from all selected file URLs
@@ -447,7 +453,7 @@ struct ContentView: View {
     panel.allowedContentTypes = [.rtf]
     panel.nameFieldStringValue = document.title.isEmpty ? "Untitled" : document.title
     panel.canCreateDirectories = true
-    
+
     panel.begin { response in
       if response == .OK, let url = panel.url {
         exportTextAsRTF(to: url)
@@ -458,17 +464,19 @@ struct ContentView: View {
   /// Export the document's attributed text as RTF to the specified URL
   private func exportTextAsRTF(to url: URL) {
     let attributedText = document.attributedText
-    
+
     // Convert NSAttributedString to RTF data
     let range = NSRange(location: 0, length: attributedText.length)
-    guard let rtfData = try? attributedText.data(
-      from: range,
-      documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
-    ) else {
+    guard
+      let rtfData = try? attributedText.data(
+        from: range,
+        documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+      )
+    else {
       print("Failed to convert attributed text to RTF")
       return
     }
-    
+
     // Write RTF data to file
     do {
       try rtfData.write(to: url)
@@ -482,7 +490,7 @@ struct ContentView: View {
     panel.allowedContentTypes = [.wav]
     panel.nameFieldStringValue = document.title.isEmpty ? "Untitled" : document.title
     panel.canCreateDirectories = true
-    
+
     panel.begin { response in
       if response == .OK, let url = panel.url {
         exportAudioAsWAV(to: url)
@@ -496,6 +504,19 @@ struct ContentView: View {
       try document.exportAudioAsWAV(to: url)
     } catch {
       print("Failed to export audio: \(error.localizedDescription)")
+    }
+  }
+
+  private func showExportCaptionsFilePicker() {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [UTType(filenameExtension: "srt")!]
+    panel.nameFieldStringValue = document.title.isEmpty ? "Untitled" : document.title
+    panel.canCreateDirectories = true
+
+    panel.begin { response in
+      if response == .OK, let url = panel.url {
+        try? document.exportCaptionsAsSRT(to: url)
+      }
     }
   }
 }

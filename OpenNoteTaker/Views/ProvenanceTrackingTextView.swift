@@ -50,6 +50,39 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
   private var editedRangeStart: Int = 0
   private var editedRangeEnd: Int = 0
 
+  override init() {
+    super.init()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
+  override init(attributedString: NSAttributedString) {
+    super.init()
+    backingStore.setAttributedString(attributedString)
+  }
+
+  required init?(pasteboardPropertyList propertyList: Any, ofType type: NSPasteboard.PasteboardType)
+  {
+    super.init()
+    // Try to create an NSAttributedString from the pasteboard data
+    if let attributedString = NSAttributedString(pasteboardPropertyList: propertyList, ofType: type) {
+      backingStore.setAttributedString(attributedString)
+    } else if let stringData = propertyList as? Data,
+      let string = String(data: stringData, encoding: .utf8)
+    {
+      // Fallback: try to create from plain string data
+      backingStore.setAttributedString(NSAttributedString(string: string))
+    } else if let string = propertyList as? String {
+      // Fallback: try direct string conversion
+      backingStore.setAttributedString(NSAttributedString(string: string))
+    } else {
+      // If we can't create anything meaningful, return nil
+      return nil
+    }
+  }
+
   override var string: String {
     backingStore.string
   }

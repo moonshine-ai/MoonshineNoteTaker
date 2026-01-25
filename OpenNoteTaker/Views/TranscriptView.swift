@@ -42,8 +42,7 @@ struct TranscriptView: View {
           }
       },
       onAttributedTextChange: { newAttributedText in
-        document.attributedText = NSAttributedString(attributedString: newAttributedText)
-        document.updateCachedSnapshot()
+        document.setAttributedText(newAttributedText)        
       }
     )
     .font(Font.custom(fontFamily, size: fontSize))
