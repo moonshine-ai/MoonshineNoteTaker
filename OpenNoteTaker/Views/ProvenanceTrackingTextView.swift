@@ -384,6 +384,8 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
   // @Binding var attributedText: NSAttributedString
   @Binding var selectedLineIds: [UInt64]
   var fontSize: CGFloat
+  var fontColor: NSColor
+  var backgroundColor: NSColor
   var onFileDrag: ((NSDraggingInfo) -> Bool)?
   var textViewRef: Binding<ProvenanceTextView?>?
   var textStorageRef: Binding<ProvenanceTrackingTextStorage?>?
@@ -412,11 +414,22 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     textView.isEditable = true
     textView.isSelectable = true
     textView.typingAttributes = [
-      .font: NSFont.systemFont(ofSize: fontSize)
+      .font: NSFont.systemFont(ofSize: fontSize),
+      .foregroundColor: fontColor
     ]
     textView.usesInspectorBar = true
-    // Apply font size as default
+    // Apply font size and color as default
     textView.font = NSFont.systemFont(ofSize: fontSize)
+    textView.textColor = fontColor
+    // Set text view background to match scroll view background
+    textView.backgroundColor = backgroundColor
+    textView.drawsBackground = true
+    
+    // Set background color on scroll view's contentView (NSClipView)
+    scrollView.backgroundColor = backgroundColor
+    scrollView.drawsBackground = true
+    scrollView.contentView.backgroundColor = backgroundColor
+    scrollView.contentView.drawsBackground = true
 
     scrollView.documentView = textView
     scrollView.hasVerticalScroller = true
@@ -453,7 +466,42 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
   }
 
   func updateNSView(_ scrollView: NSScrollView, context: Context) {
-    guard let textView = context.coordinator.textView else { return }
+    guard let textView = context.coordinator.textView,
+          let textStorage = context.coordinator.textStorage else { return }
+    
+    // Update background color on scroll view and its contentView
+    scrollView.backgroundColor = backgroundColor
+    scrollView.drawsBackground = true
+    scrollView.contentView.backgroundColor = backgroundColor
+    scrollView.contentView.drawsBackground = true
+    // Also set text view background
+    textView.backgroundColor = backgroundColor
+    textView.drawsBackground = true
+    
+    // Update typing attributes for new text
+    var typingAttrs = textView.typingAttributes
+    typingAttrs[.foregroundColor] = fontColor
+    textView.typingAttributes = typingAttrs
+    textView.textColor = fontColor
+    
+    // Apply font color to all existing text
+    // We'll apply it to the entire range, but preserve any explicit colors that differ from defaults
+    let fullRange = NSRange(location: 0, length: textStorage.length)
+    if fullRange.length > 0 {
+      textStorage.enumerateAttribute(.foregroundColor, in: fullRange, options: []) { value, range, stop in
+        let currentColor = value as? NSColor
+        // Update if no color is set, or if it's a system default color (textColor, black, or labelColor)
+        let isDefaultColor = currentColor == nil || 
+                             currentColor == NSColor.textColor || 
+                             currentColor == NSColor.black ||
+                             currentColor == NSColor.labelColor ||
+                             (currentColor?.isEqual(NSColor.textColor) ?? false)
+        
+        if isDefaultColor {
+          textStorage.addAttribute(.foregroundColor, value: fontColor, range: range)
+        }
+      }
+    }
   }
 }
 

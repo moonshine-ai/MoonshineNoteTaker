@@ -147,7 +147,7 @@ struct ContentView: View {
         }
       }
       // Unauthorized overlay
-      if (isUnauthorized || true) && wantAudioCapture {
+      if isUnauthorized && wantAudioCapture {
         VStack {
           Spacer()
           VStack {

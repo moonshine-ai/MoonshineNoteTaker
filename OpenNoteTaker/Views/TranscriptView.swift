@@ -18,6 +18,7 @@ struct TranscriptView: View {
   @AppStorage("fontSize") private var fontSize: Double = defaultFontSize
   @AppStorage("fontFamily") private var fontFamily: String = "System"
   @AppStorage("fontColor") private var fontColorData: Data = Color.black.toData()
+  @AppStorage("backgroundColor") private var backgroundColorData: Data = Color.white.toData()
   
   private var font: NSFont {
     if fontFamily == "System" {
@@ -30,18 +31,22 @@ struct TranscriptView: View {
   private var fontColor: NSColor {
     Color.fromData(fontColorData)?.toNSColor() ?? .black
   }
+  
+  private var backgroundColor: NSColor {
+    Color.fromData(backgroundColorData)?.toNSColor() ?? .white
+  }
   var onFileDrag: ((NSDraggingInfo) -> Bool)?
 
   var body: some View {
     ProvenanceTrackingTextEditor(
       selectedLineIds: $selectedLineIds,
       fontSize: fontSize,
+      fontColor: fontColor,
+      backgroundColor: backgroundColor,
       onFileDrag: onFileDrag,
       textViewRef: $provenanceTextView,
       textStorageRef: $provenanceTextStorage,
       onTextViewReady: { textView in
-        // Set default typing attributes including font color
-        textView.typingAttributes[.foregroundColor] = fontColor
         if document.attributedText.length > 0 {
           provenanceTextStorage?.append(document.attributedText)
         } else {
@@ -62,8 +67,10 @@ struct TranscriptView: View {
       updatePlaybackHighlight(oldLineIds: oldLineIds, newLineIds: newLineIds)
     }
     .onChange(of: fontColorData) {
-      // Update typing attributes when font color changes
-      provenanceTextView?.typingAttributes[.foregroundColor] = fontColor
+      updateTextColor()
+    }
+    .onChange(of: backgroundColorData) {
+      updateBackgroundColor()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
@@ -126,5 +133,48 @@ struct TranscriptView: View {
         }      
       }
     }
+  }
+  
+  private func updateTextColor() {
+    guard let textView = provenanceTextView,
+          let textStorage = provenanceTextStorage else { return }
+    
+    // Update typing attributes
+    var typingAttrs = textView.typingAttributes
+    typingAttrs[.foregroundColor] = fontColor
+    textView.typingAttributes = typingAttrs
+    textView.textColor = fontColor
+    
+    // Apply font color to all existing text that uses default colors
+    let fullRange = NSRange(location: 0, length: textStorage.length)
+    if fullRange.length > 0 {
+      textStorage.enumerateAttribute(.foregroundColor, in: fullRange, options: []) { value, range, stop in
+        let currentColor = value as? NSColor
+        // Update if no color is set, or if it's a system default color
+        let isDefaultColor = currentColor == nil || 
+                             currentColor == NSColor.textColor || 
+                             currentColor == NSColor.black ||
+                             currentColor == NSColor.labelColor ||
+                             (currentColor?.isEqual(NSColor.textColor) ?? false)
+        
+        if isDefaultColor {
+          textStorage.addAttribute(.foregroundColor, value: fontColor, range: range)
+        }
+      }
+    }
+  }
+  
+  private func updateBackgroundColor() {
+    guard let scrollView = provenanceTextView?.enclosingScrollView as? AutoScrollView,
+          let textView = provenanceTextView else { return }
+    
+    // Update background color on scroll view and its contentView
+    scrollView.backgroundColor = backgroundColor
+    scrollView.drawsBackground = true
+    scrollView.contentView.backgroundColor = backgroundColor
+    scrollView.contentView.drawsBackground = true
+    // Also set text view background
+    textView.backgroundColor = backgroundColor
+    textView.drawsBackground = true
   }
 }
