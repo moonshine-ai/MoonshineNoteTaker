@@ -133,7 +133,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   // MARK: - ReferenceFileDocument Conformance
 
   static var readableContentTypes: [UTType] {
-    [UTType(exportedAs: "ai.moonshine.opennotetaker.transcript")]
+    [UTType(exportedAs: "ai.moonshine.notetaker.transcript")]
   }
 
   nonisolated required init(configuration: ReadConfiguration) throws {

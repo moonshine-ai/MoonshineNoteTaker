@@ -31,7 +31,7 @@ struct ContentView: View {
 
   @AppStorage("fontSize") private var fontSize: Double = 14.0
   @AppStorage("backgroundColor") private var backgroundColorData: Data = Color.white.toData()
-  @AppStorage("recordMicAudio") private var recordMicAudio: Bool = false
+  @AppStorage("recordMicAudio") private var recordMicAudio: Bool = true
   @AppStorage("recordSystemAudio") private var recordSystemAudio: Bool = true
 
   @State private var pausedPlayingIds: [UInt64] = []

@@ -32,7 +32,7 @@ class CoreAudioSystemAudioCapture {
     
     // State
     private var isCapturing = false
-    private let audioQueue = DispatchQueue(label: "com.opennotetaker.coreaudio.capture")
+    private let audioQueue = DispatchQueue(label: "ai.moonshinenotetaker.coreaudio.capture")
     
     /// Check if system audio capture permission is available
     /// Note: There's no public API to check this, so we'll attempt to create a tap
@@ -289,7 +289,7 @@ class CoreAudioSystemAudioCapture {
     private func createAggregateDevice(tapUUID: UUID, outputUID: String, aggregateUID: String) throws -> AudioDeviceID {
         // Create aggregate device dictionary using AudioCap pattern
         let description: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "OpenNoteTaker-Tap",
+            kAudioAggregateDeviceNameKey: "Moonshine Note Taker-Tap",
             kAudioAggregateDeviceUIDKey: aggregateUID,
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,

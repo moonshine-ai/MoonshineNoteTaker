@@ -19,7 +19,7 @@ struct TranscriptLineMetadata: Codable, Equatable {
 
 extension NSAttributedString.Key {
   static let transcriptLineMetadata = NSAttributedString.Key(
-    "ai.moonshine.opennotetaker.transcriptLineMetadata")
+    "ai.moonshine.notetaker.transcriptLineMetadata")
 }
 
 // MARK: - Transcript Segment (Input/Output)

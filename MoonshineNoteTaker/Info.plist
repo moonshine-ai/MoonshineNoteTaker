@@ -30,9 +30,9 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>ai.moonshine.opennotetaker.transcript</string>
+			<string>ai.moonshine.notetaker.transcript</string>
 			<key>UTTypeDescription</key>
-			<string>OpenNoteTaker Transcript</string>
+			<string>Moonshine Note Taker Transcript</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -51,12 +51,12 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>OpenNoteTaker Transcript</string>
+			<string>Moonshine Note Taker Transcript</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>ai.moonshine.opennotetaker.transcript</string>
+				<string>ai.moonshine.notetaker.transcript</string>
 			</array>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>

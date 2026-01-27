@@ -2,4 +2,5 @@
 xcshareddata
 xcuserdata
 *.xcuserstate
-OpenNoteTaker.dmg
+*.dmg
+/build/

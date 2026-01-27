@@ -58,7 +58,7 @@ extension FocusedValues {
 }
 
 @main
-struct OpenNoteTakerApp: App {
+struct MoonshineNoteTakerApp: App {
     @AppStorage("fontSize") private var fontSize: Double = 14.0
     @AppStorage("fontFamily") private var fontFamily: String = "System"
 

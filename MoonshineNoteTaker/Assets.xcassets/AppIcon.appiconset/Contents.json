@@ -1,61 +1,61 @@
 {
   "images" : [
     {
-      "filename" : "OpenNoteTaker16.png",
+      "filename" : "MoonshineNoteTaker16.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"
     },
     {
-      "filename" : "OpenNoteTaker32 1.png",
+      "filename" : "MoonshineNoteTaker32 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
     },
     {
-      "filename" : "OpenNoteTaker32.png",
+      "filename" : "MoonshineNoteTaker32.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "32x32"
     },
     {
-      "filename" : "OpenNoteTaker64.png",
+      "filename" : "MoonshineNoteTaker64.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "32x32"
     },
     {
-      "filename" : "OpenNoteTaker128.png",
+      "filename" : "MoonshineNoteTaker128.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
-      "filename" : "OpenNoteTaker256 1.png",
+      "filename" : "MoonshineNoteTaker256 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
-      "filename" : "OpenNoteTaker256.png",
+      "filename" : "MoonshineNoteTaker256.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
     },
     {
-      "filename" : "OpenNoteTaker512 1.png",
+      "filename" : "MoonshineNoteTaker512 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
     },
     {
-      "filename" : "OpenNoteTaker512.png",
+      "filename" : "MoonshineNoteTaker512.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "512x512"
     },
     {
-      "filename" : "OpenNoteTaker1024.png",
+      "filename" : "MoonshineNoteTaker1024.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"
