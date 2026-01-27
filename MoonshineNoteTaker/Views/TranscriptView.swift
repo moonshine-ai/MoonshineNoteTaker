@@ -124,6 +124,8 @@ struct TranscriptView: View {
         document.lineIdsNeedingRendering[line.id] = false
       }
 
+      document.attributedText = provenanceTextStorage?.backingStore ?? NSAttributedString()
+
       if anyLinesUpdated
       {
         if wasAtBottom {
