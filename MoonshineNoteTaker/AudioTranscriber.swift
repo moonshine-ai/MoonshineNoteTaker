@@ -61,7 +61,7 @@ class AudioTranscriber {
     // options.append(TranscriberOption(name: "save_input_wav_path", value: self.documentsPath.path));
     // print("Saving debug audio to: '\(options[0].name): \(options[0].value)'")
     // options.append(TranscriberOption(name: "log_api_calls", value: "true"));
-    transcriber = try Transcriber(modelPath: modelPath, modelArch: .base, options: options)
+    transcriber = try Transcriber(modelPath: modelPath, modelArch: .mediumStreaming, options: options)
 
     // Create a stream for real-time transcription from system audio
     systemAudioStream = try transcriber?.createStream(updateInterval: 0.5)

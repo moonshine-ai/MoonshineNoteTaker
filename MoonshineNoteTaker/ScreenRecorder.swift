@@ -523,7 +523,7 @@ class ScreenRecorder: NSObject,
     /// - Returns: Path to the model directory, or nil if not found
     private func findModelPathInBundle(_ bundle: Bundle) -> String? {
         let modelDir = "models"
-        let modelName = "base-en"
+        let modelName = "medium-streaming-en"
         if let fullURL = bundle.url(forResource: "\(modelDir)/\(modelName)", withExtension: nil) {
             let modelPath = fullURL.path
             if FileManager.default.fileExists(atPath: modelPath) {
@@ -531,7 +531,7 @@ class ScreenRecorder: NSObject,
             }
         }
         
-        // Alternative: look for base-en directly in resources
+        // Alternative: look for models directly in resources
         if let modelNameURL = bundle.url(forResource: modelName, withExtension: nil) {
             let modelPath = modelNameURL.path
             if FileManager.default.fileExists(atPath: modelPath) {
