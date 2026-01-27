@@ -10,6 +10,7 @@ import Foundation
 import ScreenCaptureKit
 import SwiftUI
 import UniformTypeIdentifiers
+import SwiftUI
 
 /// Represents a single transcript line with timing information.
 struct TranscriptLine: Identifiable, Codable, Equatable {
@@ -102,6 +103,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   private var playbackEndOffset: Int = 0
   private var currentPlaybackOffset: Int = 0
   private var reachedEnd: Bool = false
+  @AppStorage("saveAudioToFile") private var saveAudioToFile: Bool = true
 
   @Published var lineIdsNeedingRendering: [UInt64: Bool] = [:]
   var selectedLineIds: [UInt64] = []
@@ -326,26 +328,27 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     // Create WAV files for each block
     var codableBlocks: [RecordingBlock.CodableBlock] = []
 
-    for (index, block) in audioBlocks.enumerated() {
-      let micFileName = "block_\(index)_mic.wav"
-      let systemFileName = "block_\(index)_system.wav"
+    if saveAudioToFile {
+      for (index, block) in audioBlocks.enumerated() {
+        let micFileName = "block_\(index)_mic.wav"
+        let systemFileName = "block_\(index)_system.wav"
 
-      // Create WAV file data (16-bit signed integer, 48KHz, mono)
-      let micData = try Self.createWavData(block.micAudio, sampleRate: 48000)
-      let systemData = try Self.createWavData(block.systemAudio, sampleRate: 48000)
+        // Create WAV file data (16-bit signed integer, 48KHz, mono)
+        let micData = try Self.createWavData(block.micAudio, sampleRate: 48000)
+        let systemData = try Self.createWavData(block.systemAudio, sampleRate: 48000)
 
-      fileWrappers[micFileName] = FileWrapper(regularFileWithContents: micData)
-      fileWrappers[systemFileName] = FileWrapper(regularFileWithContents: systemData)
+        fileWrappers[micFileName] = FileWrapper(regularFileWithContents: micData)
+        fileWrappers[systemFileName] = FileWrapper(regularFileWithContents: systemData)
 
-      codableBlocks.append(
-        RecordingBlock.CodableBlock(
-          startTime: block.startTime,
-          endTime: block.endTime,
-          micAudioFile: micFileName,
-          systemAudioFile: systemFileName
-        ))
+        codableBlocks.append(
+          RecordingBlock.CodableBlock(
+            startTime: block.startTime,
+            endTime: block.endTime,
+            micAudioFile: micFileName,
+            systemAudioFile: systemFileName
+          ))
+      }
     }
-
     // Create transcript.json with metadata
     let transcriptData = DocumentData(
       lines: snapshot.lines,

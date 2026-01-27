@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("recordMicAudio") private var recordMicAudio: Bool = false
     @AppStorage("recordSystemAudio") private var recordSystemAudio: Bool = true
     @AppStorage("enableEchoCancellation") private var enableEchoCancellation: Bool = true
+    @AppStorage("saveAudioToFile") private var saveAudioToFile: Bool = true
     
     private var fontColor: Color {
         Color.fromData(fontColorData) ?? .black
@@ -95,9 +96,10 @@ struct SettingsView: View {
             
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Record Microphone Audio", isOn: $recordMicAudio)
-                    Toggle("Record System Audio", isOn: $recordSystemAudio)
+                    Toggle("Transcribe Microphone Audio", isOn: $recordMicAudio)
+                    Toggle("Transcribe System Audio", isOn: $recordSystemAudio)
                     Toggle("Enable Echo Cancellation", isOn: $enableEchoCancellation)
+                    Toggle("Save Audio to File", isOn: $saveAudioToFile)
                 }
                 .padding(.vertical, 4)
             } header: {
