@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		122776ED2A82BC6F0083737C /* PickerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122776EC2A82BC6F0083737C /* PickerSettingsView.swift */; };
 		5951911E2F105ADC005425B3 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 5951911D2F105ADC005425B3 /* Moonshine */; };
 		595191202F105D28005425B3 /* models in Resources */ = {isa = PBXBuildFile; fileRef = 5951911F2F105D28005425B3 /* models */; };
 		59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5522F108578002E3525 /* TranscriptDocument.swift */; };
@@ -19,7 +18,6 @@
 		59C08E172F26A9DF00AC7EC1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59C08E162F26A9DF00AC7EC1 /* SettingsView.swift */; };
 		C44093732816EC8800FB8386 /* Synth.aif in Resources */ = {isa = PBXBuildFile; fileRef = C44093722816EC8800FB8386 /* Synth.aif */; };
 		C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C470F0802811C5CB00D29309 /* ScreenRecorder.swift */; };
-		C4729DA52821BFAD00AAC477 /* MaterialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4729DA42821BFAD00AAC477 /* MaterialView.swift */; };
 		C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */; };
 		C4B0DAAF276BA4480015082A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAAE276BA4480015082A /* Assets.xcassets */; };
 		C4B0DAB2276BA4480015082A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAB1276BA4480015082A /* Preview Assets.xcassets */; };
@@ -29,7 +27,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		122776EC2A82BC6F0083737C /* PickerSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PickerSettingsView.swift; sourceTree = "<group>"; };
 		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = MoonshineNoteTaker/models; sourceTree = "<group>"; };
 		59AEB5522F108578002E3525 /* TranscriptDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptDocument.swift; sourceTree = "<group>"; };
 		59AEB5542F108778002E3525 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
@@ -41,9 +38,8 @@
 		9AEEB9169F5D7FC75E6B35A2 /* SampleCode.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = SampleCode.xcconfig; path = Configuration/SampleCode.xcconfig; sourceTree = "<group>"; };
 		C44093722816EC8800FB8386 /* Synth.aif */ = {isa = PBXFileReference; lastKnownFileType = file; path = Synth.aif; sourceTree = "<group>"; };
 		C470F0802811C5CB00D29309 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
-		C4729DA42821BFAD00AAC477 /* MaterialView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MaterialView.swift; sourceTree = "<group>"; };
 		C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AudioTranscriber.swift; sourceTree = "<group>"; };
-		C4B0DAA7276BA4460015082A /* MoonshineNoteTaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoonshineNoteTaker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C4B0DAA7276BA4460015082A /* Moonshine Note Taker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Moonshine Note Taker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C4B0DAAE276BA4480015082A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../MoonshineNoteTaker/Assets.xcassets; sourceTree = "<group>"; };
 		C4B0DAB1276BA4480015082A /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		C4B0DAB3276BA4480015082A /* MoonshineNoteTaker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = MoonshineNoteTaker.entitlements; path = ../MoonshineNoteTaker/MoonshineNoteTaker.entitlements; sourceTree = "<group>"; };
@@ -82,8 +78,6 @@
 				59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */,
 				59AEB5542F108778002E3525 /* TranscriptView.swift */,
 				C4B0DABC276BA4B50015082A /* CapturePreview.swift */,
-				C4729DA42821BFAD00AAC477 /* MaterialView.swift */,
-				122776EC2A82BC6F0083737C /* PickerSettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -110,7 +104,7 @@
 		C4B0DAA8276BA4460015082A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C4B0DAA7276BA4460015082A /* MoonshineNoteTaker.app */,
+				C4B0DAA7276BA4460015082A /* Moonshine Note Taker.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -153,9 +147,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C4B0DAA6276BA4460015082A /* MoonshineNoteTaker */ = {
+		C4B0DAA6276BA4460015082A /* Moonshine Note Taker */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "MoonshineNoteTaker" */;
+			buildConfigurationList = C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "Moonshine Note Taker" */;
 			buildPhases = (
 				C4B0DAA3276BA4460015082A /* Sources */,
 				C4B0DAA4276BA4460015082A /* Frameworks */,
@@ -167,7 +161,7 @@
 			);
 			name = "Moonshine Note Taker";
 			productName = CaptureIt;
-			productReference = C4B0DAA7276BA4460015082A /* MoonshineNoteTaker.app */;
+			productReference = C4B0DAA7276BA4460015082A /* Moonshine Note Taker.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -203,7 +197,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				C4B0DAA6276BA4460015082A /* MoonshineNoteTaker */,
+				C4B0DAA6276BA4460015082A /* Moonshine Note Taker */,
 			);
 		};
 /* End PBXProject section */
@@ -235,9 +229,7 @@
 				59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */,
 				C470F0812811C5CB00D29309 /* ScreenRecorder.swift in Sources */,
 				C4B0DABA276BA49F0015082A /* MoonshineNoteTakerApp.swift in Sources */,
-				122776ED2A82BC6F0083737C /* PickerSettingsView.swift in Sources */,
 				59C08E072F172A0900AC7EC1 /* ContentView.swift in Sources */,
-				C4729DA52821BFAD00AAC477 /* MaterialView.swift in Sources */,
 				59C08E102F1ACCB100AC7EC1 /* AudioPlayer.swift in Sources */,
 				59C08E172F26A9DF00AC7EC1 /* SettingsView.swift in Sources */,
 			);
@@ -452,7 +444,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "MoonshineNoteTaker" */ = {
+		C4B0DAB6276BA4480015082A /* Build configuration list for PBXNativeTarget "Moonshine Note Taker" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C4B0DAB7276BA4480015082A /* Debug */,
