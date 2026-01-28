@@ -57,6 +57,17 @@ extension FocusedValues {
     }
 }
 
+struct FindAndReplaceActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var findAndReplaceAction: (() -> Void)? {
+        get { self[FindAndReplaceActionKey.self] }
+        set { self[FindAndReplaceActionKey.self] = newValue }
+    }
+}
+
 @main
 struct MoonshineNoteTakerApp: App {
     @AppStorage("fontSize") private var fontSize: Double = 14.0
@@ -89,16 +100,12 @@ struct MoonshineNoteTakerApp: App {
                 PrintCommand()
             }
             TextFormattingCommands()
-        }
-        
-        Settings {
-            SettingsView()
+            CommandGroup(after: .textEditing) {
+                FindAndReplaceCommand()
+            }
         }
     }
 }
-
-// MARK: - Export Command
-
 struct ImportAudioCommand: View {
     @FocusedValue(\.importAudioAction) var importAudioAction
     
@@ -154,5 +161,17 @@ struct PrintCommand: View {
         }
         .keyboardShortcut("p", modifiers: [.command])
         .disabled(printAction == nil)
+    }
+}
+
+struct FindAndReplaceCommand: View {
+    @FocusedValue(\.findAndReplaceAction) var findAndReplaceAction
+    
+    var body: some View {
+        Button("Find and Replace...") {
+            findAndReplaceAction?()
+        }
+        .keyboardShortcut("f", modifiers: [.command])
+        .disabled(findAndReplaceAction == nil)
     }
 }

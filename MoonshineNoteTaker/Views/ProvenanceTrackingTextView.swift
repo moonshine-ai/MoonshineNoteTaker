@@ -451,6 +451,9 @@ struct ProvenanceTrackingTextEditor: NSViewRepresentable {
     textView.onFileDrag = onFileDrag
     textView.onAttributedTextChange = onAttributedTextChange
 
+    // Enable built-in find bar for find and replace
+    textView.usesFindBar = true
+    
     // Store reference in coordinator
     context.coordinator.textView = textView
     context.coordinator.textStorage = textStorage
@@ -553,4 +556,14 @@ func mergeAdjacentSegments(_ segments: [TranscriptTextSegment]) -> [TranscriptTe
   result.append(current)
 
   return result
+}
+
+// Needed because of SwiftUI funkiness:
+// https://stackoverflow.com/questions/78327587/find-bar-is-not-working-when-using-nstextview-in-swiftui
+extension NSTextView {
+    func showFindBar() {
+        let menuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        menuItem.tag = NSTextFinder.Action.showFindInterface.rawValue
+        self.performTextFinderAction(menuItem)
+    } 
 }

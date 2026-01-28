@@ -72,6 +72,9 @@ struct TranscriptView: View {
     .onChange(of: backgroundColorData) {
       updateBackgroundColor()
     }
+    .focusedSceneValue(\.findAndReplaceAction) {
+      provenanceTextView?.showFindBar()
+    }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 

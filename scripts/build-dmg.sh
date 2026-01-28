@@ -18,6 +18,8 @@ else
 	exit 1
 fi
 
+rm -rf MoonshineNoteTaker.dmg
+
 create-dmg \
 	--volname "Moonshine Note Taker" \
 	--volicon "images/dmg-icon.png" \
