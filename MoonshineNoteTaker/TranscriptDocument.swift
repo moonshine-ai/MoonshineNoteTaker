@@ -26,6 +26,12 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
   /// Duration of the line in seconds.
   var duration: TimeInterval
 
+  /// Whether the speaker has been identified.
+  var hasSpeakerId: Bool
+
+  /// The speaker index for the line.
+  var speakerIndex: UInt32
+
   /// End time of the line (startTime + duration).
   var endTime: Date {
     startTime.addingTimeInterval(duration)
@@ -40,13 +46,15 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
 
   init(
     id: UInt64, text: String, startTime: Date, duration: TimeInterval,
-    source: TranscriptLine.Source
+    source: TranscriptLine.Source, hasSpeakerId: Bool, speakerIndex: UInt32
   ) {
     self.id = id
     self.text = text
     self.startTime = startTime
     self.duration = duration
     self.source = source
+    self.hasSpeakerId = hasSpeakerId
+    self.speakerIndex = speakerIndex
   }
 }
 
@@ -584,7 +592,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   func addDummyStartLine() {
     let line = TranscriptLine(
       id: 0, text: "\n", startTime: Date(timeIntervalSince1970: 0), duration: 0,
-      source: .systemAudio)
+      source: .systemAudio, hasSpeakerId: false, speakerIndex: 0)
     lineIdsNeedingRendering[line.id] = true
     lines.insert(line, at: 0)
   }
@@ -623,11 +631,13 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   }
 
   @MainActor
-  func updateLine(id: UInt64, text: String, duration: TimeInterval) {
+  func updateLine(id: UInt64, text: String, duration: TimeInterval, hasSpeakerId: Bool, speakerIndex: UInt32) {
     if let index = lines.firstIndex(where: { $0.id == id }) {
       var updatedLine = lines[index]
       updatedLine.text = text
       updatedLine.duration = duration
+      updatedLine.hasSpeakerId = hasSpeakerId
+      updatedLine.speakerIndex = speakerIndex
       lines[index] = updatedLine
       lines.sort { $0.startTime < $1.startTime }
       lineIdsNeedingRendering[id] = true

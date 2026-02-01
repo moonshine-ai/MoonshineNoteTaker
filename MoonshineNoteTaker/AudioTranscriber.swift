@@ -266,7 +266,7 @@ class AudioTranscriber {
       text: actualText,
       startTime: relativeStartTime,
       duration: TimeInterval(line.duration),
-      source: source
+      source: source, hasSpeakerId: line.hasSpeakerId, speakerIndex: line.speakerIndex
     )
 
     // Add to document on main actor
@@ -292,7 +292,7 @@ class AudioTranscriber {
 
     let lineId: UInt64 = line.lineId
     Task { @MainActor in
-      document.updateLine(id: lineId, text: text, duration: duration)
+      document.updateLine(id: lineId, text: text, duration: duration, hasSpeakerId: line.hasSpeakerId, speakerIndex: line.speakerIndex)
     }
   }
 

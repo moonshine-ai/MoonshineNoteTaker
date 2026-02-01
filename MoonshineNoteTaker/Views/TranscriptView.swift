@@ -15,6 +15,9 @@ struct TranscriptView: View {
   @Binding var selectedLineIds: [UInt64]
   @State private var provenanceTextView: ProvenanceTextView? = nil
   @State private var provenanceTextStorage: ProvenanceTrackingTextStorage? = nil
+  @State private var previousLine: TranscriptLine? = nil
+  @State private var firstLineId: UInt64? = nil
+  @State private var lineHasSpeakerId: [UInt64: Bool] = [:]
   @AppStorage("fontSize") private var fontSize: Double = defaultFontSize
   @AppStorage("fontFamily") private var fontFamily: String = "System"
   @AppStorage("fontColor") private var fontColorData: Data = Color.black.toData()
@@ -114,8 +117,33 @@ struct TranscriptView: View {
       for line in document.lines.filter({ document.lineIdsNeedingRendering[$0.id] ?? false }) {
         anyLinesUpdated = true
         let metadata = encodeMetadata(TranscriptLineMetadata(lineId: line.id, userEdited: false))!
+        // Only show the speaker index for the first line with a different speaker from 
+        // the previous line, or for the first line of a new session.
+        let showSpeakerIndex: Bool
+        if (!line.hasSpeakerId) {
+          showSpeakerIndex = false
+        } else if lineHasSpeakerId[line.id] ?? false {
+          showSpeakerIndex = true
+        } else if (firstLineId == nil || firstLineId == line.id) {
+          showSpeakerIndex = true
+          firstLineId = line.id
+        } else if previousLine != nil && previousLine?.speakerIndex != line.speakerIndex {
+          showSpeakerIndex = true
+        } else {
+          showSpeakerIndex = false
+        }
+        if line.hasSpeakerId && (previousLine == nil || previousLine?.id != line.id) {
+          previousLine = line
+        }
+        let text: String
+        if showSpeakerIndex {
+          lineHasSpeakerId[line.id] = true
+          text = "\nSpeaker \(line.speakerIndex + 1):\n\(line.text)"
+        } else {
+          text = line.text
+        }
         let newString: NSAttributedString = NSAttributedString(
-          string: line.text, attributes: [.font: font, .foregroundColor: fontColor, .transcriptLineMetadata: metadata])
+          string: text, attributes: [.font: font, .foregroundColor: fontColor, .transcriptLineMetadata: metadata])
         if !(lineAlreadyExists[line.id] ?? false) {
           provenanceTextStorage?.append(newString)
         } else {

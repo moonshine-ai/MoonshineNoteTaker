@@ -104,8 +104,12 @@ struct MoonshineNoteTakerApp: App {
                 FindAndReplaceCommand()
             }
         }
+        Settings {
+            SettingsView()
+        }
     }
 }
+
 struct ImportAudioCommand: View {
     @FocusedValue(\.importAudioAction) var importAudioAction
     
