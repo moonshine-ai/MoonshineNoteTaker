@@ -183,6 +183,7 @@ private class CaptureEngineStreamOutput: NSObject, SCStreamOutput, SCStreamDeleg
     }
     
     func stream(_ stream: SCStream, didStopWithError error: Error) {
+        print("Stream stopped with error: \(type(of: error)) \(error.localizedDescription)")
         continuation?.finish(throwing: error)
     }
 }

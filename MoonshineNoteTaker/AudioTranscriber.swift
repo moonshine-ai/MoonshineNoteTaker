@@ -137,8 +137,17 @@ class AudioTranscriber {
   /// Add audio data to the transcription stream.
   /// - Parameter buffer: AVAudioPCMBuffer containing audio samples
   func addAudio(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) throws {
+    return
     guard let systemAudioStream = systemAudioStream, isTranscribing else { return }
+    let bufferCopy = buffer.copy() as! AVAudioPCMBuffer
 
+    Task.detached {[weak self] in
+      guard let self = self else { return }
+      try? await self.addAudioWorker(bufferCopy, audioType: audioType)
+    }
+  }
+
+  private func addAudioWorker(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) async throws {
     let destinationStreamOptional: MoonshineVoice.Stream? =
       (audioType == SCStreamOutputType.microphone ? micStream : systemAudioStream)
     guard let destinationStream = destinationStreamOptional else {

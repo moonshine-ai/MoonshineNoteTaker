@@ -84,10 +84,6 @@ class ScreenRecorder: NSObject,
     @Published var contentSize = CGSize(width: 1, height: 1)
     private var scaleFactor: Int { Int(NSScreen.main?.backingScaleFactor ?? 2) }
     
-    /// A view that renders the screen content.
-    lazy var capturePreview: CapturePreview = {
-        CapturePreview()
-    }()
     private let screenRecorderPicker = SCContentSharingPicker.shared
     private var availableApps = [SCRunningApplication]()
     @Published private(set) var availableDisplays = [SCDisplay]()
@@ -214,14 +210,13 @@ class ScreenRecorder: NSObject,
             setPickerUpdate(false)
             // Start the stream and await new video frames.
             for try await frame in captureEngine.startCapture(configuration: config, filter: filter) {
-                capturePreview.updateFrame(frame)
                 if contentSize != frame.size {
                     // Update the content size if it changed.
                     contentSize = frame.size
                 }
             }
         } catch {
-            logger.error("\(error.localizedDescription)")
+            logger.error("Screen recorder start failed: \(error.localizedDescription)")
             // Unable to start the stream. Set the running state to false.
             isRunning = false
         }

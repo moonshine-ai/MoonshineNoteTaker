@@ -23,7 +23,6 @@
 		C4B0DAAF276BA4480015082A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAAE276BA4480015082A /* Assets.xcassets */; };
 		C4B0DAB2276BA4480015082A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4B0DAB1276BA4480015082A /* Preview Assets.xcassets */; };
 		C4B0DABA276BA49F0015082A /* MoonshineNoteTakerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DAB9276BA49F0015082A /* MoonshineNoteTakerApp.swift */; };
-		C4B0DABF276BA4B50015082A /* CapturePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DABC276BA4B50015082A /* CapturePreview.swift */; };
 		C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B0DABD276BA4B50015082A /* CaptureEngine.swift */; };
 /* End PBXBuildFile section */
 
@@ -47,7 +46,6 @@
 		C4B0DAB3276BA4480015082A /* MoonshineNoteTaker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = MoonshineNoteTaker.entitlements; path = ../MoonshineNoteTaker/MoonshineNoteTaker.entitlements; sourceTree = "<group>"; };
 		C4B0DAB9276BA4480015083A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = ../MoonshineNoteTaker/Info.plist; sourceTree = "<group>"; };
 		C4B0DAB9276BA49F0015082A /* MoonshineNoteTakerApp.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = MoonshineNoteTakerApp.swift; path = ../MoonshineNoteTaker/MoonshineNoteTakerApp.swift; sourceTree = "<group>"; };
-		C4B0DABC276BA4B50015082A /* CapturePreview.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CapturePreview.swift; sourceTree = "<group>"; };
 		C4B0DABD276BA4B50015082A /* CaptureEngine.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -79,7 +77,6 @@
 				59C08E062F172A0900AC7EC1 /* ContentView.swift */,
 				59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */,
 				59AEB5542F108778002E3525 /* TranscriptView.swift */,
-				C4B0DABC276BA4B50015082A /* CapturePreview.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -225,7 +222,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				59799BC42F2FE1E200AB8D28 /* SleepAssertion.swift in Sources */,
-				C4B0DABF276BA4B50015082A /* CapturePreview.swift in Sources */,
 				C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */,
 				59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */,
 				C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */,
