@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5951911E2F105ADC005425B3 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 5951911D2F105ADC005425B3 /* Moonshine */; };
 		595191202F105D28005425B3 /* models in Resources */ = {isa = PBXBuildFile; fileRef = 5951911F2F105D28005425B3 /* models */; };
+		59799BC42F2FE1E200AB8D28 /* SleepAssertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59799BC32F2FE1E200AB8D28 /* SleepAssertion.swift */; };
 		59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5522F108578002E3525 /* TranscriptDocument.swift */; };
 		59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5542F108778002E3525 /* TranscriptView.swift */; };
 		59AEB55A2F11C715002E3525 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 59AEB5592F11C715002E3525 /* Moonshine */; };
@@ -28,6 +29,7 @@
 
 /* Begin PBXFileReference section */
 		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = MoonshineNoteTaker/models; sourceTree = "<group>"; };
+		59799BC32F2FE1E200AB8D28 /* SleepAssertion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepAssertion.swift; sourceTree = "<group>"; };
 		59AEB5522F108578002E3525 /* TranscriptDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptDocument.swift; sourceTree = "<group>"; };
 		59AEB5542F108778002E3525 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvenanceTrackingTextView.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 		C4B0DAA9276BA4460015082A /* MoonshineNoteTaker */ = {
 			isa = PBXGroup;
 			children = (
+				59799BC32F2FE1E200AB8D28 /* SleepAssertion.swift */,
 				59C08E0F2F1ACCB100AC7EC1 /* AudioPlayer.swift */,
 				59AEB5522F108578002E3525 /* TranscriptDocument.swift */,
 				C470F0802811C5CB00D29309 /* ScreenRecorder.swift */,
@@ -221,6 +224,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				59799BC42F2FE1E200AB8D28 /* SleepAssertion.swift in Sources */,
 				C4B0DABF276BA4B50015082A /* CapturePreview.swift in Sources */,
 				C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */,
 				59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */,

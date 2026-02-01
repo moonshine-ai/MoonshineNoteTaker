@@ -54,10 +54,12 @@ struct ContentView: View {
             Task {
               if screenRecorder.isRunning {
                 await screenRecorder.stop()
+                SleepAssertion.enableSleep()
               } else {
                 // Enable audio sources based on settings
                 screenRecorder.isAudioCaptureEnabled = recordSystemAudio
                 screenRecorder.isMicCaptureEnabled = recordMicAudio
+                SleepAssertion.disableSleep()
                 await screenRecorder.start()
               }
             }
