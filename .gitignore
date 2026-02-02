@@ -4,3 +4,5 @@ xcuserdata
 *.xcuserstate
 *.dmg
 /build/
+.env
+/ExportOptions.plist
