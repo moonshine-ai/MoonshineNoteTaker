@@ -63,6 +63,9 @@ struct RecordingBlock: Equatable {
   var endTime: Date
   var micAudio: [Float]  // In-memory only, not Codable
   var systemAudio: [Float]  // In-memory only, not Codable
+  var audioCount: Int {
+    max(micAudio.count, systemAudio.count)
+  }
 
   // File references for bundle format (used during save/load)
   var micAudioFile: String?
@@ -773,19 +776,19 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   func getBlockIndexAndOffset(index: Int) -> (Int, Int) {
     var blockStartIndex = 0
     for (blockIndex, block) in recordingBlocks.enumerated() {
-      if index < blockStartIndex + block.micAudio.count {
+      if index < blockStartIndex + block.audioCount {
         return (blockIndex, index - blockStartIndex)
       }
-      blockStartIndex += block.micAudio.count
+      blockStartIndex += block.audioCount
     }
     let lastBlock = recordingBlocks[recordingBlocks.count - 1]
-    return (recordingBlocks.count - 1, lastBlock.micAudio.count)
+    return (recordingBlocks.count - 1, lastBlock.audioCount)
   }
 
   func getGlobalOffset(blockIndex: Int, blockOffset: Int) -> Int {
     var globalOffset = 0
     for i in 0..<blockIndex {
-      globalOffset += recordingBlocks[i].micAudio.count
+      globalOffset += recordingBlocks[i].audioCount
     }
     globalOffset += blockOffset
     return globalOffset
@@ -840,7 +843,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
       if blockIndex == endBlockIndex {
         currentEndOffset = endBlockOffset
       } else {
-        currentEndOffset = recordingBlocks[blockIndex].micAudio.count
+        currentEndOffset = recordingBlocks[blockIndex].audioCount
       }
       let micStartOffset = min(currentStartOffset, recordingBlocks[blockIndex].micAudio.count)
       let micEndOffset = max(
@@ -859,7 +862,7 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     } else {
       let lastBlockIndex = recordingBlocks.count - 1
       let lastBlock = recordingBlocks[lastBlockIndex]
-      let lastBlockSize = lastBlock.micAudio.count
+      let lastBlockSize = max(lastBlock.micAudio.count, lastBlock.systemAudio.count)
       let globalEndOffset = getGlobalOffset(blockIndex: lastBlockIndex, blockOffset: lastBlockSize)
       self.reachedEnd = currentGlobalOffset >= globalEndOffset
     }

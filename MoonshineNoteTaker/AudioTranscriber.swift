@@ -51,16 +51,15 @@ class AudioTranscriber {
 
     logger.info("Initializing Moonshine Voice transcriber with model path: \(modelPath)")
 
-    // Initialize transcriber with tiny model architecture (suitable for streaming)
-    let options: [TranscriberOption] = []
     if !FileManager.default.fileExists(atPath: self.documentsPath.path) {
       try FileManager.default.createDirectory(
         at: self.documentsPath, withIntermediateDirectories: true, attributes: nil)
     }
-    // Uncomment to save debug audio to disk.
-    // options.append(TranscriberOption(name: "save_input_wav_path", value: self.documentsPath.path));
-    // print("Saving debug audio to: '\(options[0].name): \(options[0].value)'")
-    // options.append(TranscriberOption(name: "log_api_calls", value: "true"));
+    let options: [TranscriberOption] = [
+      // Uncomment to get more detailed logs and save debug audio to disk.
+      // TranscriberOption(name: "save_input_wav_path", value: self.documentsPath.path),
+      // TranscriberOption(name: "log_api_calls", value: "true"),
+    ]
     transcriber = try Transcriber(modelPath: modelPath, modelArch: .mediumStreaming, options: options)
 
     // Create a stream for real-time transcription from system audio
@@ -138,15 +137,6 @@ class AudioTranscriber {
   /// - Parameter buffer: AVAudioPCMBuffer containing audio samples
   func addAudio(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) throws {
     guard let systemAudioStream = systemAudioStream, isTranscribing else { return }
-    let bufferCopy = buffer.copy() as! AVAudioPCMBuffer
-
-    Task.detached {[weak self] in
-      guard let self = self else { return }
-      try? await self.addAudioWorker(bufferCopy, audioType: audioType)
-    }
-  }
-
-  private func addAudioWorker(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) async throws {
     let destinationStreamOptional: MoonshineVoice.Stream? =
       (audioType == SCStreamOutputType.microphone ? micStream : systemAudioStream)
     guard let destinationStream = destinationStreamOptional else {
