@@ -148,13 +148,13 @@ class AudioTranscriber {
     }
 
     let inputFormat = buffer.format
-    let inputSampleRate = inputFormat.sampleRate
+    let targetSampleRate = 48000.0
 
     // Create target format: mono, float32, same sample rate
     guard
       let targetFormat = AVAudioFormat(
         commonFormat: .pcmFormatFloat32,
-        sampleRate: inputSampleRate,
+        sampleRate: targetSampleRate,
         channels: 1,
         interleaved: false
       )
