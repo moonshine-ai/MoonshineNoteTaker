@@ -137,7 +137,6 @@ class AudioTranscriber {
   /// Add audio data to the transcription stream.
   /// - Parameter buffer: AVAudioPCMBuffer containing audio samples
   func addAudio(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) throws {
-    return
     guard let systemAudioStream = systemAudioStream, isTranscribing else { return }
     let bufferCopy = buffer.copy() as! AVAudioPCMBuffer
 
@@ -235,13 +234,13 @@ class AudioTranscriber {
         ? SCStreamOutputType.audio : SCStreamOutputType.microphone)
     let line: MoonshineVoice.TranscriptLine = event.line
     switch event {
-    case let lineStarted as LineStarted:
+    case is LineStarted:
       addLineToDocument(line, actualText: line.text, audioType: audioType)
 
-    case let lineTextChanged as LineTextChanged:
+    case is LineTextChanged:
       updateDocumentForLine(line, actualText: line.text)
 
-    case let lineCompleted as LineCompleted:
+    case is LineCompleted:
       updateDocumentForLine(line, actualText: line.text + "\n")
 
     case let error as TranscriptError:
