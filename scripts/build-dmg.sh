@@ -63,3 +63,5 @@ gsutil -h "Content-Type:application/x-apple-diskimage" -h "Content-Encoding:" \
   cp "$DMG_NAME" "gs://download.moonshine.ai/apps/note-taker/$DMG_NAME"
 
 rm -rf "$TMP_DIR"
+
+echo "DMG uploaded to https://download.moonshine.ai/apps/note-taker/$DMG_NAME"

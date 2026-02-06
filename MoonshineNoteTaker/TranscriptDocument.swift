@@ -517,23 +517,32 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     }
     var srtText = ""
     let startTime: Date = recordingBlocks[0].startTime
+    var previousLineEndTime: Date = startTime
     var index = 1
     for line in lines {
       // Skip the dummy start line with id 0 and empty lines.
       if line.id == 0 || line.text.isEmpty {
         continue
       }
-      let lineStartRelativeTime = line.startTime.timeIntervalSince(startTime)
-      let lineEndRelativeTime = line.startTime.addingTimeInterval(line.duration).timeIntervalSince(
-        startTime)
+
+      // Make sure that lines are not overlapping in time.
+      let lineStartTime = max(line.startTime, previousLineEndTime)
+      let lineEndTime = line.startTime.addingTimeInterval(line.duration)
+      previousLineEndTime = lineEndTime
+
+      let lineStartRelativeTime = lineStartTime.timeIntervalSince(startTime)
+      let lineEndRelativeTime = lineEndTime.timeIntervalSince(startTime)
+
       let lineStartHours = Int(lineStartRelativeTime / 3600)
       let lineStartMinutes = Int((lineStartRelativeTime.truncatingRemainder(dividingBy: 3600)) / 60)
       let lineStartSeconds = Int(lineStartRelativeTime.truncatingRemainder(dividingBy: 60))
       let lineStartMilliseconds = Int((lineStartRelativeTime - floor(lineStartRelativeTime)) * 1000)
+
       let lineEndHours = Int(lineEndRelativeTime / 3600)
       let lineEndMinutes = Int((lineEndRelativeTime.truncatingRemainder(dividingBy: 3600)) / 60)
       let lineEndSeconds = Int(lineEndRelativeTime.truncatingRemainder(dividingBy: 60))
       let lineEndMilliseconds = Int((lineEndRelativeTime - floor(lineEndRelativeTime)) * 1000)
+
       srtText += "\(index)\n"
       srtText +=
         String(

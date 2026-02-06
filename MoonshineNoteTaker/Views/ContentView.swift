@@ -328,7 +328,7 @@ struct ContentView: View {
     // Check if asset has audio tracks
     let audioTracks = try? await asset.loadTracks(withMediaType: .audio)
     guard let tracks = audioTracks, !tracks.isEmpty else {
-      print("No audio tracks found in file: \(url.lastPathComponent)")
+      showError(message: "No audio tracks found in file: \(url.lastPathComponent)")
       return
     }
 
@@ -342,7 +342,7 @@ struct ContentView: View {
       let exportSession = AVAssetExportSession(
         asset: asset, presetName: AVAssetExportPresetAppleM4A)
     else {
-      print("Failed to create export session for: \(url.lastPathComponent)")
+      showError(message: "Failed to create export session for: \(url.lastPathComponent)")
       return
     }
 
@@ -354,7 +354,7 @@ struct ContentView: View {
 
     guard exportSession.status == .completed else {
       if let error = exportSession.error {
-        print("Export failed for \(url.lastPathComponent): \(error.localizedDescription)")
+        showError(message: "Export failed for \(url.lastPathComponent): \(error.localizedDescription)")
       }
       // Clean up temp file if it exists
       try? FileManager.default.removeItem(at: tempFileURL)
@@ -375,7 +375,7 @@ struct ContentView: View {
           interleaved: false
         )
       else {
-        print("Failed to create target audio format")
+        showError(message: "Failed to create target audio format for \(url.lastPathComponent)")
         try? FileManager.default.removeItem(at: tempFileURL)
         return
       }
@@ -383,7 +383,7 @@ struct ContentView: View {
       // Use AVAudioConverter if format conversion is needed
       let frameLength = AVAudioFrameCount(audioFile.length)
       guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameLength) else {
-        print("Failed to create audio buffer")
+        showError(message: "Failed to create audio buffer for \(url.lastPathComponent)")
         try? FileManager.default.removeItem(at: tempFileURL)
         return
       }
@@ -394,7 +394,7 @@ struct ContentView: View {
       var pcmBuffer = buffer
       if format != targetFormat {
         guard let converter = AVAudioConverter(from: format, to: targetFormat) else {
-          print("Failed to create audio converter")
+          showError(message: "Failed to create audio converter for \(url.lastPathComponent)")
           try? FileManager.default.removeItem(at: tempFileURL)
           return
         }
@@ -408,7 +408,7 @@ struct ContentView: View {
             frameCapacity: AVAudioFrameCount(outputFrameCount)
           )
         else {
-          print("Failed to create converted buffer")
+          showError(message: "Failed to create converted buffer for \(url.lastPathComponent)")
           try? FileManager.default.removeItem(at: tempFileURL)
           return
         }
@@ -422,7 +422,7 @@ struct ContentView: View {
         converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
 
         if let error = error {
-          print("Audio conversion error: \(error.localizedDescription)")
+          showError(message: "Audio conversion error for \(url.lastPathComponent): \(error.localizedDescription)")
           try? FileManager.default.removeItem(at: tempFileURL)
           return
         }
@@ -432,7 +432,7 @@ struct ContentView: View {
 
       // Extract PCM data as Float array
       guard let floatChannelData = pcmBuffer.floatChannelData else {
-        print("Failed to extract float channel data")
+        showError(message: "Failed to extract float channel data for \(url.lastPathComponent)")
         try? FileManager.default.removeItem(at: tempFileURL)
         return
       }
@@ -441,7 +441,7 @@ struct ContentView: View {
       let pcmData = Array(UnsafeBufferPointer(start: floatChannelData[0], count: pcmFrameLength))
 
       guard let audioTranscriber = await screenRecorder.getAudioTranscriber() else {
-        print("Audio transcriber not found")
+        showError(message: "Audio transcriber not found for \(url.lastPathComponent)")
         return
       }
       await MainActor.run {
@@ -453,7 +453,7 @@ struct ContentView: View {
       try? FileManager.default.removeItem(at: tempFileURL)
 
     } catch {
-      print("Error reading audio file: \(error.localizedDescription)")
+      showError(message: "Error reading audio file for \(url.lastPathComponent): \(error.localizedDescription)")
       try? FileManager.default.removeItem(at: tempFileURL)
     }
   }
@@ -564,5 +564,13 @@ struct ContentView: View {
 
   private var backgroundColor: Color {
     Color.fromData(backgroundColorData) ?? .white
+  }
+
+  private func showError(message: String) {
+    let alert = NSAlert()
+    alert.alertStyle = .critical
+    alert.messageText = message
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
   }
 }
