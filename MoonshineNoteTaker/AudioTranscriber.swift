@@ -11,6 +11,16 @@ import OSLog
 import ScreenCaptureKit
 import SwiftUI
 
+struct QueueEntry {
+  let buffer: AVAudioPCMBuffer
+  let audioType: SCStreamOutputType
+
+  init(buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) {
+    self.buffer = buffer
+    self.audioType = audioType
+  }
+}
+
 /// Manages audio transcription using Moonshine Voice.
 class AudioTranscriber {
   private let logger = Logger()
@@ -39,6 +49,11 @@ class AudioTranscriber {
   private let importedAudioChunkDuration: Double = 5.0
   private let importedAudioSampleRate: Int32 = 48000
   private var importedAudioBufferLock = NSLock()
+
+  private var audioQueue: [QueueEntry] = []
+  private let audioQueueLock = NSLock()
+  private var audioQueueProcessingTask: Task<Void, Never>? = nil
+  private var stopRequested = false
 
   /// Initialize the transcriber with a model path.
   /// - Parameter modelPath: Path to the directory containing model files (e.g., "tiny-en")
@@ -110,22 +125,51 @@ class AudioTranscriber {
 
     try systemAudioStream.start()
     try micStream.start()
+
+    self.stopRequested = false
+    self.audioQueueProcessingTask = Task.detached { [weak self] in
+      guard let self = self else { return }
+      try? await self.processAudioQueue()
+    }
     isTranscribing = true
     logger.info("Transcription started")
   }
 
   /// Stop transcription.
   func stop() throws {
-    guard let systemAudioStream = systemAudioStream else { return }
-    guard let micStream = micStream else { return }
+    guard let _ = systemAudioStream else { return }
+    guard let _ = micStream else { return }
 
     guard isTranscribing else {
       logger.warning("Transcription not started")
       return
     }
 
-    try systemAudioStream.stop()
-    try micStream.stop()
+    Task.detached { [weak self] in
+      guard let self = self else { return }
+      try? await self.stopWorker()
+    }
+  }
+
+  private func stopWorker() async throws {
+    self.stopRequested = true
+
+    while true {
+      let isEmpty: Bool = self.audioQueueLock.withLock {
+        self.audioQueue.isEmpty
+      }
+      if isEmpty {
+        break
+      }
+      try? await Task.sleep(for: .milliseconds(10))
+    }
+
+    self.audioQueueProcessingTask?.cancel()
+    self.audioQueueProcessingTask = nil
+
+    try systemAudioStream?.stop()
+    try micStream?.stop()
+
     isTranscribing = false
     transcriptionStartTime = nil
     logger.info("Transcription stopped")
@@ -135,7 +179,34 @@ class AudioTranscriber {
 
   /// Add audio data to the transcription stream.
   /// - Parameter buffer: AVAudioPCMBuffer containing audio samples
+  /// Since this can be called from a time-sensitive thread, we add the buffer 
+  /// to a queue and process it in a background thread to avoid any dropped audio
+  /// frames.
   func addAudio(_ buffer: AVAudioPCMBuffer, audioType: SCStreamOutputType) throws {
+    guard !stopRequested else { return }
+    let bufferCopy = buffer.copy() as! AVAudioPCMBuffer
+    audioQueueLock.withLock {
+      audioQueue.append(QueueEntry(buffer: bufferCopy, audioType: audioType))
+    }
+  }
+
+  private func processAudioQueue() async throws {
+    while true {
+      let entry: QueueEntry? = audioQueueLock.withLock {
+        guard !audioQueue.isEmpty else { return nil }
+        return audioQueue.removeFirst()
+      }
+      if let entry = entry {
+        try processAudioQueueEntry(entry)
+      } else {
+        try? await Task.sleep(for: .milliseconds(10))
+      }
+    }
+  }
+
+  private func processAudioQueueEntry(_ entry: QueueEntry) throws {
+    let buffer = entry.buffer
+    let audioType = entry.audioType
     guard let systemAudioStream = systemAudioStream, isTranscribing else { return }
     let destinationStreamOptional: MoonshineVoice.Stream? =
       (audioType == SCStreamOutputType.microphone ? micStream : systemAudioStream)
