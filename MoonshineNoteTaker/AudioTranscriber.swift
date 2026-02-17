@@ -54,6 +54,7 @@ class AudioTranscriber {
   private let audioQueueLock = NSLock()
   private var audioQueueProcessingTask: Task<Void, Never>? = nil
   private var stopRequested = false
+  private let transcriptionInterval: Double = 0.5
 
   /// Initialize the transcriber with a model path.
   /// - Parameter modelPath: Path to the directory containing model files (e.g., "tiny-en")
@@ -78,7 +79,7 @@ class AudioTranscriber {
     transcriber = try Transcriber(modelPath: modelPath, modelArch: .mediumStreaming, options: options)
 
     // Create a stream for real-time transcription from system audio
-    systemAudioStream = try transcriber?.createStream(updateInterval: 0.5)
+    systemAudioStream = try transcriber?.createStream(updateInterval: transcriptionInterval)
 
     // Add event listeners to print transcript changes and completions
     systemAudioStream?.addListener { [weak self] event in
@@ -86,7 +87,7 @@ class AudioTranscriber {
     }
 
     // Create a stream for real-time transcription from microphone audio
-    micStream = try transcriber?.createStream(updateInterval: 0.5)
+    micStream = try transcriber?.createStream(updateInterval: transcriptionInterval)
 
     // Add event listeners to print transcript changes and completions
     micStream?.addListener { [weak self] event in
@@ -190,16 +191,65 @@ class AudioTranscriber {
     }
   }
 
+  /// Returns a new buffer containing the concatenation of `first` and `second`.
+  private func append(_ second: AVAudioPCMBuffer, to first: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+    let totalFrames = first.frameLength + second.frameLength
+    guard let result = AVAudioPCMBuffer(pcmFormat: first.format, frameCapacity: totalFrames) else {
+      return nil
+    }
+    result.frameLength = totalFrames
+    guard let dst = result.floatChannelData,
+          let src1 = first.floatChannelData,
+          let src2 = second.floatChannelData else {
+      return nil
+    }
+    let frameLength1 = Int(first.frameLength)
+    let frameLength2 = Int(second.frameLength)
+    let channelCount = Int(first.format.channelCount)
+    for channel in 0..<channelCount {
+      let s1 = src1[channel]
+      let s2 = src2[channel]
+      let d = dst[channel]
+      memcpy(d, s1, frameLength1 * MemoryLayout<Float>.size)
+      memcpy(d + frameLength1, s2, frameLength2 * MemoryLayout<Float>.size)
+    }
+    return result
+  }
+
   private func processAudioQueue() async throws {
     while true {
-      let entry: QueueEntry? = audioQueueLock.withLock {
-        guard !audioQueue.isEmpty else { return nil }
-        return audioQueue.removeFirst()
+      let entries: [QueueEntry] = audioQueueLock.withLock {
+        guard !audioQueue.isEmpty else { return [] }
+        let result = audioQueue
+        audioQueue.removeAll()
+        return result
       }
-      if let entry = entry {
-        try processAudioQueueEntry(entry)
-      } else {
+      if entries.isEmpty {
         try? await Task.sleep(for: .milliseconds(10))
+        continue
+      }
+      var systemAudioBuffer: AVAudioPCMBuffer? = nil
+      var micAudioBuffer: AVAudioPCMBuffer? = nil
+      for entry in entries {
+        if entry.audioType == SCStreamOutputType.audio {
+          if let existing = systemAudioBuffer {
+            systemAudioBuffer = append(entry.buffer, to: existing) ?? existing
+          } else {
+            systemAudioBuffer = entry.buffer
+          }
+        } else {
+          if let existing = micAudioBuffer {
+            micAudioBuffer = append(entry.buffer, to: existing) ?? existing
+          } else {
+            micAudioBuffer = entry.buffer
+          }
+        }
+      }
+      if systemAudioBuffer != nil {
+        try processAudioQueueEntry(QueueEntry(buffer: systemAudioBuffer!, audioType: SCStreamOutputType.audio))
+      }
+      if micAudioBuffer != nil {
+        try processAudioQueueEntry(QueueEntry(buffer: micAudioBuffer!, audioType: SCStreamOutputType.microphone))
       }
     }
   }
