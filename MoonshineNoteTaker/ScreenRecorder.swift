@@ -390,7 +390,7 @@ class ScreenRecorder: NSObject,
     
     private var streamConfiguration: SCStreamConfiguration {
         
-        var streamConfig = SCStreamConfiguration()
+        var streamConfig: SCStreamConfiguration = SCStreamConfiguration()
         
         if let dynamicRangePreset = selectedDynamicRangePreset?.scDynamicRangePreset {
             streamConfig = SCStreamConfiguration(preset: dynamicRangePreset)
@@ -399,26 +399,15 @@ class ScreenRecorder: NSObject,
         // Configure audio capture.
         streamConfig.capturesAudio = isAudioCaptureEnabled
         streamConfig.excludesCurrentProcessAudio = isAppAudioExcluded
-        streamConfig.captureMicrophone = isMicCaptureEnabled
+        streamConfig.captureMicrophone = false // isMicCaptureEnabled
         
-        // Configure the display content width and height.
-        if captureType == .display, let display = selectedDisplay {
-            streamConfig.width = display.width * scaleFactor
-            streamConfig.height = display.height * scaleFactor
-        }
-        
-        // Configure the window content width and height.
-        if captureType == .window, let window = selectedWindow {
-            streamConfig.width = Int(window.frame.width) * 2
-            streamConfig.height = Int(window.frame.height) * 2
-        }
-        
-        // Set the capture interval at 60 fps.
-        streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: 60)
-        
-        // Increase the depth of the frame queue to ensure high fps at the expense of increasing
-        // the memory footprint of WindowServer.
-        streamConfig.queueDepth = 5
+        // Video cannot be disabled in ScreenCaptureKit (no capturesVideo property).
+        // Use minimal dimensions and 1 fps so video uses minimal CPU/memory while
+        // still satisfying the framework (a screen stream output is still required).
+        streamConfig.width = 2
+        streamConfig.height = 2
+        streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: 1)  // 1 fps
+        streamConfig.queueDepth = 1
         
         return streamConfig
     }

@@ -56,6 +56,8 @@ class AudioTranscriber {
   private var stopRequested = false
   private let transcriptionInterval: Double = 0.5
 
+  private var microphonePCMSampleVendor: MicrophonePCMSampleVendor? = nil
+
   /// Initialize the transcriber with a model path.
   /// - Parameter modelPath: Path to the directory containing model files (e.g., "tiny-en")
   /// - Throws: Error if transcriber cannot be initialized
@@ -132,6 +134,15 @@ class AudioTranscriber {
       guard let self = self else { return }
       try? await self.processAudioQueue()
     }
+
+    self.microphonePCMSampleVendor = MicrophonePCMSampleVendor()
+    let microphonePCMStream = try self.microphonePCMSampleVendor!.start()
+    Task { [weak self] in
+      for await sample in microphonePCMStream {
+        guard let self = self else { return }
+        try? self.addAudio(sample, audioType: SCStreamOutputType.microphone)
+      }
+    }
     isTranscribing = true
     logger.info("Transcription started")
   }
@@ -170,6 +181,8 @@ class AudioTranscriber {
 
     try systemAudioStream?.stop()
     try micStream?.stop()
+    self.microphonePCMSampleVendor?.stop()
+    self.microphonePCMSampleVendor = nil
 
     isTranscribing = false
     transcriptionStartTime = nil
@@ -198,20 +211,38 @@ class AudioTranscriber {
       return nil
     }
     result.frameLength = totalFrames
-    guard let dst = result.floatChannelData,
-          let src1 = first.floatChannelData,
-          let src2 = second.floatChannelData else {
-      return nil
-    }
     let frameLength1 = Int(first.frameLength)
     let frameLength2 = Int(second.frameLength)
     let channelCount = Int(first.format.channelCount)
-    for channel in 0..<channelCount {
-      let s1 = src1[channel]
-      let s2 = src2[channel]
-      let d = dst[channel]
-      memcpy(d, s1, frameLength1 * MemoryLayout<Float>.size)
-      memcpy(d + frameLength1, s2, frameLength2 * MemoryLayout<Float>.size)
+
+    if first.format.commonFormat == .pcmFormatInt16 {
+      guard let dst = result.int16ChannelData,
+            let src1 = first.int16ChannelData,
+            let src2 = second.int16ChannelData else {
+        return nil
+      }
+      for channel in 0..<channelCount {
+        let s1 = src1[channel]
+        let s2 = src2[channel]
+        let d = dst[channel]
+        memcpy(d, s1, frameLength1 * MemoryLayout<Int16>.size)
+        memcpy(d + frameLength1, s2, frameLength2 * MemoryLayout<Int16>.size)
+      }
+    } else if first.format.commonFormat == .pcmFormatFloat32 {
+      guard let dst = result.floatChannelData,
+            let src1 = first.floatChannelData,
+            let src2 = second.floatChannelData else {
+        return nil
+      }
+      for channel in 0..<channelCount {
+        let s1 = src1[channel]
+        let s2 = src2[channel]
+        let d = dst[channel]
+        memcpy(d, s1, frameLength1 * MemoryLayout<Float>.size)
+        memcpy(d + frameLength1, s2, frameLength2 * MemoryLayout<Float>.size)
+      }
+    } else {
+      logger.warning("Unsupported audio format")
     }
     return result
   }

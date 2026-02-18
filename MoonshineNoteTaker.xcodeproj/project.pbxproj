@@ -10,6 +10,8 @@
 		5951911E2F105ADC005425B3 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 5951911D2F105ADC005425B3 /* Moonshine */; };
 		595191202F105D28005425B3 /* models in Resources */ = {isa = PBXBuildFile; fileRef = 5951911F2F105D28005425B3 /* models */; };
 		59799BC42F2FE1E200AB8D28 /* SleepAssertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59799BC32F2FE1E200AB8D28 /* SleepAssertion.swift */; };
+		598EE3432F4518E700BF39F9 /* MicrophonePCMSampleVendor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 598EE3422F4518E700BF39F9 /* MicrophonePCMSampleVendor.swift */; };
+		598EE3452F451BF800BF39F9 /* MicrophonePCMSampleVendorError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 598EE3442F451BF800BF39F9 /* MicrophonePCMSampleVendorError.swift */; };
 		59AEB5532F108578002E3525 /* TranscriptDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5522F108578002E3525 /* TranscriptDocument.swift */; };
 		59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AEB5542F108778002E3525 /* TranscriptView.swift */; };
 		59AEB55A2F11C715002E3525 /* Moonshine in Frameworks */ = {isa = PBXBuildFile; productRef = 59AEB5592F11C715002E3525 /* Moonshine */; };
@@ -29,6 +31,8 @@
 /* Begin PBXFileReference section */
 		5951911F2F105D28005425B3 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = MoonshineNoteTaker/models; sourceTree = "<group>"; };
 		59799BC32F2FE1E200AB8D28 /* SleepAssertion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepAssertion.swift; sourceTree = "<group>"; };
+		598EE3422F4518E700BF39F9 /* MicrophonePCMSampleVendor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePCMSampleVendor.swift; sourceTree = "<group>"; };
+		598EE3442F451BF800BF39F9 /* MicrophonePCMSampleVendorError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePCMSampleVendorError.swift; sourceTree = "<group>"; };
 		59AEB5522F108578002E3525 /* TranscriptDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptDocument.swift; sourceTree = "<group>"; };
 		59AEB5542F108778002E3525 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		59C08E042F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvenanceTrackingTextView.swift; sourceTree = "<group>"; };
@@ -117,6 +121,8 @@
 				C470F0802811C5CB00D29309 /* ScreenRecorder.swift */,
 				C4B0DABD276BA4B50015082A /* CaptureEngine.swift */,
 				C4AUDIO1C8BA4B50015082A /* AudioTranscriber.swift */,
+				598EE3422F4518E700BF39F9 /* MicrophonePCMSampleVendor.swift */,
+				598EE3442F451BF800BF39F9 /* MicrophonePCMSampleVendorError.swift */,
 				C41D1B1D2814BD230033613F /* Views */,
 				C4B0DAB9276BA49F0015082A /* MoonshineNoteTakerApp.swift */,
 				C44093712816EC7800FB8386 /* Audio */,
@@ -223,6 +229,7 @@
 			files = (
 				59799BC42F2FE1E200AB8D28 /* SleepAssertion.swift in Sources */,
 				C4B0DAC0276BA4B50015082A /* CaptureEngine.swift in Sources */,
+				598EE3432F4518E700BF39F9 /* MicrophonePCMSampleVendor.swift in Sources */,
 				59AEB5552F108778002E3525 /* TranscriptView.swift in Sources */,
 				C4AUDIO2C8BA4B50015082A /* AudioTranscriber.swift in Sources */,
 				59C08E052F15CEBC00AC7EC1 /* ProvenanceTrackingTextView.swift in Sources */,
@@ -232,6 +239,7 @@
 				59C08E072F172A0900AC7EC1 /* ContentView.swift in Sources */,
 				59C08E102F1ACCB100AC7EC1 /* AudioPlayer.swift in Sources */,
 				59C08E172F26A9DF00AC7EC1 /* SettingsView.swift in Sources */,
+				598EE3452F451BF800BF39F9 /* MicrophonePCMSampleVendorError.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
