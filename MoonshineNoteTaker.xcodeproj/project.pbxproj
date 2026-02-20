@@ -197,7 +197,7 @@
 			);
 			mainGroup = C4B0DA9E276BA4460015082A;
 			packageReferences = (
-				59AEB5582F11C715002E3525 /* XCLocalSwiftPackageReference "../moonshine-v2/swift" */,
+				59AEB5582F11C715002E3525 /* XCLocalSwiftPackageReference "../moonshine/swift" */,
 			);
 			productRefGroup = C4B0DAA8276BA4460015082A /* Products */;
 			projectDirPath = "";
@@ -464,9 +464,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		59AEB5582F11C715002E3525 /* XCLocalSwiftPackageReference "../moonshine-v2/swift" */ = {
+		59AEB5582F11C715002E3525 /* XCLocalSwiftPackageReference "../moonshine/swift" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "../moonshine-v2/swift";
+			relativePath = "../moonshine/swift";
 		};
 /* End XCLocalSwiftPackageReference section */
 

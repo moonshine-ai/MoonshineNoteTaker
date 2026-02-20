@@ -58,6 +58,12 @@ class AudioTranscriber {
 
   private var microphonePCMSampleVendor: MicrophonePCMSampleVendor? = nil
 
+  private var micInputFormat: AVAudioFormat? = nil
+  private var micAudioConverter: AVAudioConverter? = nil
+ 
+  private var systemInputFormat: AVAudioFormat? = nil
+  private var systemAudioConverter: AVAudioConverter? = nil
+
   /// Initialize the transcriber with a model path.
   /// - Parameter modelPath: Path to the directory containing model files (e.g., "tiny-en")
   /// - Throws: Error if transcriber cannot be initialized
@@ -299,10 +305,26 @@ class AudioTranscriber {
       return
     }
 
-    let inputFormat = buffer.format
-    let targetSampleRate = 48000.0
+    let currentInputFormat = buffer.format
 
-    // Create target format: mono, float32, same sample rate
+    let needToCreateConverter: Bool
+    if audioType == SCStreamOutputType.microphone {
+      if self.micInputFormat == nil || self.micInputFormat != currentInputFormat {
+        needToCreateConverter = true
+        self.micInputFormat = currentInputFormat
+      } else {
+          needToCreateConverter = false
+      }
+    } else {
+      if self.systemInputFormat == nil || self.systemInputFormat != currentInputFormat {
+        needToCreateConverter = true
+        self.systemInputFormat = currentInputFormat
+      } else {
+          needToCreateConverter = false
+      }
+    }
+    
+    let targetSampleRate = 48000.0
     guard
       let targetFormat = AVAudioFormat(
         commonFormat: .pcmFormatFloat32,
@@ -314,16 +336,27 @@ class AudioTranscriber {
       logger.warning("Failed to create target audio format")
       return
     }
+    if needToCreateConverter {
+      guard let converter: AVAudioConverter = AVAudioConverter(from: currentInputFormat, to: targetFormat) else {
+        logger.warning("Failed to create audio converter from \(currentInputFormat) to \(targetFormat)")
+        return
+      }
+      if audioType == SCStreamOutputType.microphone {
+        self.micAudioConverter = converter
+      } else {
+        self.systemAudioConverter = converter
+      }
+    }
 
-    // Use AVAudioConverter for format conversion (handles channel mixing, sample rate, etc.)
-    guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
-      logger.warning("Failed to create audio converter from \(inputFormat) to \(targetFormat)")
+    let converter = audioType == SCStreamOutputType.microphone ? self.micAudioConverter : self.systemAudioConverter
+    guard let converter = converter else {
+      logger.warning("Audio converter is nil")
       return
     }
 
     // Calculate output buffer size (may be different due to sample rate conversion)
     let inputFrameCount = Int(buffer.frameLength)
-    let ratio = targetFormat.sampleRate / inputFormat.sampleRate
+    let ratio = targetSampleRate / currentInputFormat.sampleRate
     let outputFrameCount = Int(ceil(Double(inputFrameCount) * ratio))
 
     guard
@@ -360,7 +393,7 @@ class AudioTranscriber {
     let monoAudioData = Array(
       UnsafeBufferPointer(start: outputFloatChannelData[0], count: outputFrameLength))
 
-    try destinationStream.addAudio(monoAudioData, sampleRate: Int32(targetFormat.sampleRate))
+    try destinationStream.addAudio(monoAudioData, sampleRate: Int32(targetSampleRate))
 
     if audioType == SCStreamOutputType.microphone {
       transcriptDocument?.addMicAudio(monoAudioData)

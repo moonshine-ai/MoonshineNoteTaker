@@ -54,7 +54,9 @@ class CaptureEngine: NSObject, @unchecked Sendable {
             self.streamOutput = streamOutput
             streamOutput.capturedFrameHandler = { continuation.yield($0) }
             streamOutput.audioHandler = { buffer, audioType in
-                try? self.audioTranscriber.addAudio(buffer, audioType: audioType)
+                if audioType != SCStreamOutputType.microphone {
+                    try? self.audioTranscriber.addAudio(buffer, audioType: audioType)
+                }
             }
 
             do {

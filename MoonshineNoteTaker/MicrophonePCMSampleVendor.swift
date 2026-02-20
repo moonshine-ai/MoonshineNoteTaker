@@ -265,12 +265,21 @@ open class MicrophonePCMSampleVendor {
         self.audioConverter = nil
     }
 
+    private var debugIndex: Int = 0
+
+//    private var lastNanoseconds: UInt64 = 0
+
     fileprivate func didReceiveRenderCallback(
         _ ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
         _ inTimeStamp: UnsafePointer<AudioTimeStamp>,
         _ inBusNumber: UInt32,
         _ inNumberFrames: UInt32
     ) {
+//        let hostTime = inTimeStamp.pointee.mHostTime
+//        let nanoseconds = AudioConvertHostTimeToNanos(hostTime)
+//        print("delta: \(nanoseconds - lastNanoseconds) ns")
+//        lastNanoseconds = nanoseconds
+
         guard let audioUnit = audioUnit else {
             print("There is no audioUnit attached to the sample vendor. Render callback should not be called")
             return
@@ -310,7 +319,7 @@ open class MicrophonePCMSampleVendor {
         }
 
         if let inPCMBuf = AVAudioPCMBuffer(pcmFormat: audioFormat, bufferListNoCopy: &bufferList),
-           let outPCMBuf = self.convertPCM16BufferToExpectedSampleRate(inPCMBuf)  {
+          let outPCMBuf = self.convertPCM16BufferToExpectedSampleRate(inPCMBuf)  {
             self.continuation?.yield(outPCMBuf)
         }
     }
