@@ -83,6 +83,7 @@ class AudioTranscriber {
       // Uncomment to get more detailed logs and save debug audio to disk.
       // TranscriberOption(name: "save_input_wav_path", value: self.documentsPath.path),
       // TranscriberOption(name: "log_api_calls", value: "true"),
+      // TranscriberOption(name: "log_output_text", value: "true"),
     ]
     transcriber = try Transcriber(modelPath: modelPath, modelArch: .mediumStreaming, options: options)
 
@@ -105,6 +106,11 @@ class AudioTranscriber {
     importedAudioStream = try transcriber?.createStream(updateInterval: importedAudioChunkDuration)
     importedAudioStream?.addListener { [weak self] event in
       self?.handleTranscriptEvent(event)
+    }
+
+    self.audioQueueProcessingTask = Task.detached { [weak self] in
+      guard let self = self else { return }
+      try? await self.processAudioQueue()
     }
 
     logger.info("Moonshine Voice transcriber initialized successfully")
@@ -136,10 +142,6 @@ class AudioTranscriber {
     try micStream.start()
 
     self.stopRequested = false
-    self.audioQueueProcessingTask = Task.detached { [weak self] in
-      guard let self = self else { return }
-      try? await self.processAudioQueue()
-    }
 
     self.microphonePCMSampleVendor = MicrophonePCMSampleVendor()
     let microphonePCMStream = try self.microphonePCMSampleVendor!.start()
@@ -181,9 +183,6 @@ class AudioTranscriber {
       }
       try? await Task.sleep(for: .milliseconds(10))
     }
-
-    self.audioQueueProcessingTask?.cancel()
-    self.audioQueueProcessingTask = nil
 
     try systemAudioStream?.stop()
     try micStream?.stop()
@@ -486,6 +485,9 @@ class AudioTranscriber {
     } catch {
       logger.error("Error stopping transcription during cleanup: \(error.localizedDescription)")
     }
+
+    self.audioQueueProcessingTask?.cancel()
+    self.audioQueueProcessingTask = nil
 
     systemAudioStream?.close()
     transcriber?.close()
