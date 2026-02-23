@@ -8,8 +8,8 @@ Transcribe any speech on your Mac—**completely privately**, with no connection
 
 ## Get the app
 
-- **Website:** [note-taker.moonshine.ai](https://note-taker.moonshine.ai)
-- **Mac App Store:** [Moonshine Note Taker](https://apps.apple.com/app/moonshine-note-taker/id6739156252)
+- **Download:** [note-taker.moonshine.ai/download](https://note-taker.moonshine.ai/download)
+- **Mac App Store:** *Coming soon*
 
 ---
 
