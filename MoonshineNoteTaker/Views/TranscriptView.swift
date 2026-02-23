@@ -22,7 +22,8 @@ struct TranscriptView: View {
   @AppStorage("fontFamily") private var fontFamily: String = "System"
   @AppStorage("fontColor") private var fontColorData: Data = Color.black.toData()
   @AppStorage("backgroundColor") private var backgroundColorData: Data = Color.white.toData()
-  
+  @AppStorage("showSpeakerIds") private var showSpeakerIds: Bool = true
+
   private var font: NSFont {
     if fontFamily == "System" {
       return NSFont.systemFont(ofSize: fontSize)
@@ -120,7 +121,9 @@ struct TranscriptView: View {
         // Only show the speaker index for the first line with a different speaker from 
         // the previous line, or for the first line of a new session.
         let showSpeakerIndex: Bool
-        if (!line.hasSpeakerId) {
+        if (!showSpeakerIds) {
+          showSpeakerIndex = false
+        } else if (!line.hasSpeakerId) {
           showSpeakerIndex = false
         } else if lineHasSpeakerId[line.id] ?? false {
           showSpeakerIndex = true

@@ -17,7 +17,8 @@ struct SettingsView: View {
     @AppStorage("recordSystemAudio") private var recordSystemAudio: Bool = true
     @AppStorage("enableEchoCancellation") private var enableEchoCancellation: Bool = true
     @AppStorage("saveAudioToFile") private var saveAudioToFile: Bool = true
-    
+    @AppStorage("showSpeakerIds") private var showSpeakerIds: Bool = true
+
     private var fontColor: Color {
         Color.fromData(fontColorData) ?? .black
     }
@@ -100,6 +101,7 @@ struct SettingsView: View {
                     Toggle("Transcribe System Audio", isOn: $recordSystemAudio)
                     Toggle("Enable Echo Cancellation", isOn: $enableEchoCancellation)
                     Toggle("Save Audio to File", isOn: $saveAudioToFile)
+                    Toggle("Show Speaker IDs", isOn: $showSpeakerIds)
                 }
                 .padding(.vertical, 4)
             } header: {
