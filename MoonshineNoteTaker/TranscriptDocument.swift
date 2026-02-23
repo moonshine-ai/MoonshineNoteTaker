@@ -767,7 +767,10 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
   func endCurrentRecordingBlock() {
     recordingBlocksLock.lock()
     defer { recordingBlocksLock.unlock() }
-    recordingBlocks[recordingBlocks.count - 1].endTime = Date()
+    var lastBlock = recordingBlocks[recordingBlocks.count - 1]
+    let duration = TimeInterval(Double(lastBlock.audioCount) / 48000.0)
+    lastBlock.endTime = lastBlock.startTime.addingTimeInterval(duration)
+    recordingBlocks[recordingBlocks.count - 1] = lastBlock
   }
 
   func addMicAudio(_ audio: [Float]) {
