@@ -10,6 +10,7 @@
 
 import AVFoundation
 import AudioToolbox
+import CoreAudio
 import Foundation
 
 /// This is an AudioToolbox-based implementation that vends PCM16 microphone samples at a
@@ -59,7 +60,12 @@ open class MicrophonePCMSampleVendor {
 
     public init() {}
 
-    public func start() throws -> AsyncStream<AVAudioPCMBuffer> {
+    /// Start capturing microphone audio.
+    ///
+    /// - Parameter deviceID: A specific `AudioDeviceID` to capture from, or `nil`
+    ///   to use the current system default input device. Obtain device IDs from
+    ///   `AudioDeviceManager.availableInputDevices`.
+    public func start(deviceID: AudioDeviceID? = nil) throws -> AsyncStream<AVAudioPCMBuffer> {
         var desc = AudioComponentDescription(
             componentType: kAudioUnitType_Output,
             componentSubType: kAudioUnitSubType_VoiceProcessingIO,
@@ -80,6 +86,30 @@ open class MicrophonePCMSampleVendor {
                 "Could not instantiate an audio component with VoiceProcessingIO"
             )
         }
+
+        // ---------------------------------------------------------------
+        // Set the input device BEFORE configuring formats and initializing.
+        // This must happen early so the AU knows which hardware it's
+        // talking to when we query/set stream formats.
+        // ---------------------------------------------------------------
+        #if os(macOS)
+        if let deviceID = deviceID {
+            var mutableDeviceID = deviceID
+            let err = AudioUnitSetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &mutableDeviceID,
+                UInt32(MemoryLayout<AudioDeviceID>.size)
+            )
+            guard err == noErr else {
+                throw MicrophonePCMSampleVendorError.couldNotConfigureAudioUnit(
+                    "Could not set audio input device (ID: \(deviceID), error: \(err))"
+                )
+            }
+        }
+        #endif
 
         var otherAudioDuckingConfiguration = AUVoiceIOOtherAudioDuckingConfiguration(
             mEnableAdvancedDucking: false,
@@ -138,32 +168,6 @@ open class MicrophonePCMSampleVendor {
                                           &hardwareASBD,
                                           &size)
 
-        // Does not work on macOS. Remove comment in future commit.
-        //        var ioFormat = AudioStreamBasicDescription(
-        //            mSampleRate: 24000,
-        //            mFormatID: kAudioFormatLinearPCM,
-        //            mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked,
-        //            mBytesPerPacket: 2 /* UInt32(MemoryLayout<Int16>.size) */,
-        //            mFramesPerPacket: 1,
-        //            mBytesPerFrame: 2 /* UInt32(MemoryLayout<Int16>.size) */,
-        //            mChannelsPerFrame: 1,
-        //            mBitsPerChannel: 16 /* UInt32(8 * MemoryLayout<Int16>.size) */,
-        //            mReserved: 0
-        //        )
-
-        // Does not work on macOS. Remove comment in future commit.
-        //        var ioFormat = AudioStreamBasicDescription(
-        //            mSampleRate: hardwareASBD.mSampleRate,
-        //            mFormatID: kAudioFormatLinearPCM,
-        //            mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked,
-        //            mBytesPerPacket: 2,
-        //            mFramesPerPacket: 1,
-        //            mBytesPerFrame: 2,
-        //            mChannelsPerFrame: 1,
-        //            mBitsPerChannel: 16,
-        //            mReserved: 0
-        //        )
-
         var ioFormat = AudioStreamBasicDescription(
             mSampleRate: voiceProcessingInputSampleRate, // Sample rate (Hz) IMPORTANT, on macOS 44100 is the *only* sample rate that will work with the voice processing AU
             mFormatID: kAudioFormatLinearPCM,
@@ -189,20 +193,6 @@ open class MicrophonePCMSampleVendor {
             )
         }
 
-        // Suprisingly, we do not need to set the input scope format. Remove in future commit.
-        // err = AudioUnitSetProperty(audioUnit,
-        //                      kAudioUnitProperty_StreamFormat,
-        //                      kAudioUnitScope_Input,
-        //                      0,
-        //                      &ioFormat,
-        //                      UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
-        // )
-        // guard err == noErr else {
-        //     throw MicrophonePCMSampleVendorError.couldNotConfigureAudioUnit(
-        //         "Could not set ASBD on the input scope of the mic bus"
-        //     )
-        // }
-
         var inputCallbackStruct = AURenderCallbackStruct(
             inputProc: audioRenderCallback,
             inputProcRefCon: Unmanaged.passUnretained(self).toOpaque()
@@ -219,21 +209,6 @@ open class MicrophonePCMSampleVendor {
                 "Could not set the render callback on the voice processing audio unit"
             )
         }
-        
-        // Do not use auto gain control. Remove in a future commit.
-        // var enable: UInt32 = 1
-        // err = AudioUnitSetProperty(audioUnit,
-        //                      kAUVoiceIOProperty_VoiceProcessingEnableAGC,
-        //                      kAudioUnitScope_Output,
-        //                      1,
-        //                      &enable,
-        //                      UInt32(MemoryLayout.size(ofValue: enable)))
-        //
-        // guard err == noErr else {
-        //     throw MicrophonePCMSampleVendorError.couldNotConfigureAudioUnit(
-        //         "Could not configure auto gain control"
-        //     )
-        // }
 
         err = AudioUnitInitialize(audioUnit)
         guard err == noErr else {
@@ -267,19 +242,12 @@ open class MicrophonePCMSampleVendor {
 
     private var debugIndex: Int = 0
 
-//    private var lastNanoseconds: UInt64 = 0
-
     fileprivate func didReceiveRenderCallback(
         _ ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
         _ inTimeStamp: UnsafePointer<AudioTimeStamp>,
         _ inBusNumber: UInt32,
         _ inNumberFrames: UInt32
     ) {
-//        let hostTime = inTimeStamp.pointee.mHostTime
-//        let nanoseconds = AudioConvertHostTimeToNanos(hostTime)
-//        print("delta: \(nanoseconds - lastNanoseconds) ns")
-//        lastNanoseconds = nanoseconds
-
         guard let audioUnit = audioUnit else {
             print("There is no audioUnit attached to the sample vendor. Render callback should not be called")
             return
@@ -325,7 +293,6 @@ open class MicrophonePCMSampleVendor {
     }
 
     private func convertPCM16BufferToExpectedSampleRate(_ pcm16Buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        // print("Captured \(pcm16Buffer.frameLength) pcm16 samples from the mic")
         guard let audioFormat = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
             sampleRate: 24000.0,
@@ -353,20 +320,12 @@ open class MicrophonePCMSampleVendor {
             return nil
         }
 
-#if false
-        writePCM16IntValuesToFile(from: pcm16Buffer, location: "output1.txt")
-#endif
-
-        // See the docstring on AVAudioConverterInputBlock in AVAudioConverter.h
-        //
-        // The block will keep getting invoked until either the frame capacity is
-        // reached or outStatus.pointee is set to `.noDataNow` or `.endStream`.
         var error: NSError?
         var ptr: UInt32 = 0
         let targetFrameLength = pcm16Buffer.frameLength
         let _ = converter.convert(to: outputBuffer, error: &error) { numberOfFrames, outStatus in
             guard ptr < targetFrameLength,
-                  let workingCopy = advancedPCMBuffer_noCopy(pcm16Buffer, offset: ptr)
+                  let workingCopy = advancedPCM16Buffer_noCopy(pcm16Buffer, offset: ptr)
             else {
                 outStatus.pointee = .noDataNow
                 return nil
@@ -383,15 +342,12 @@ open class MicrophonePCMSampleVendor {
             return nil
         }
 
-#if false
-        writePCM16IntValuesToFile(from: outputBuffer, location: "output2.txt")
-#endif
-
         return outputBuffer
     }
 }
 
-private func advancedPCMBuffer_noCopy(_ originalBuffer: AVAudioPCMBuffer, offset: UInt32) -> AVAudioPCMBuffer? {
+// Renamed to avoid collision if old file is still in the project
+private func advancedPCM16Buffer_noCopy(_ originalBuffer: AVAudioPCMBuffer, offset: UInt32) -> AVAudioPCMBuffer? {
     let audioBufferList = originalBuffer.mutableAudioBufferList
     guard audioBufferList.pointee.mNumberBuffers == 1,
           audioBufferList.pointee.mBuffers.mNumberChannels == 1
@@ -403,41 +359,13 @@ private func advancedPCMBuffer_noCopy(_ originalBuffer: AVAudioPCMBuffer, offset
         print("Could not get audio buffer data from the original PCM16 buffer")
         return nil
     }
-    // advanced(by:) is O(1)
     audioBufferList.pointee.mBuffers.mData = audioBufferData.advanced(
-        by: Int(offset) * MemoryLayout<UInt16>.size  // <-- Can I use something smarter here than hardcoding the UInt16 in?
+        by: Int(offset) * MemoryLayout<UInt16>.size
     )
     return AVAudioPCMBuffer(
         pcmFormat: originalBuffer.format,
         bufferListNoCopy: audioBufferList
     )
-}
-
-// For debugging purposes only.
-private func writePCM16IntValuesToFile(from buffer: AVAudioPCMBuffer, location: String) {
-    guard let audioBufferList = buffer.audioBufferList.pointee.mBuffers.mData else {
-        print("No audio data available to write to disk")
-        return
-    }
-
-    // Get the samples
-    let c = Int(buffer.frameLength)
-    let pointer = audioBufferList.bindMemory(to: Int16.self, capacity: c)
-    let samples = UnsafeBufferPointer(start: pointer, count: c)
-
-    // Append them to a file for debugging
-    let fileURL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads/\(location)")
-    let content = samples.map { String($0) }.joined(separator: "\n") + "\n"
-    if !FileManager.default.fileExists(atPath: fileURL.path) {
-        try? content.write(to: fileURL, atomically: true, encoding: .utf8)
-    } else {
-        let fileHandle = try! FileHandle(forWritingTo: fileURL)
-        defer { fileHandle.closeFile() }
-        fileHandle.seekToEndOfFile()
-        if let data = content.data(using: .utf8) {
-            fileHandle.write(data)
-        }
-    }
 }
 
 private let audioRenderCallback: AURenderCallback = {

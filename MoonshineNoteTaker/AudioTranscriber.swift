@@ -144,7 +144,9 @@ class AudioTranscriber {
     self.stopRequested = false
 
     self.microphonePCMSampleVendor = MicrophonePCMSampleVendor()
-    let microphonePCMStream = try self.microphonePCMSampleVendor!.start()
+    let microphonePCMStream = try self.microphonePCMSampleVendor!.start(
+      deviceID: AudioDeviceManager.shared.selectedDeviceID
+    )
     Task { [weak self] in
       for await sample in microphonePCMStream {
         guard let self = self else { return }

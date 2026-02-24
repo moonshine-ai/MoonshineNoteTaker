@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 
+import CoreAudio
+
 // MARK: - FocusedValue for Export Action
 struct ImportAudioActionKey: FocusedValueKey {
     typealias Value = () -> Void
@@ -105,7 +107,7 @@ struct MoonshineNoteTakerApp: App {
             }
         }
         Settings {
-            SettingsView()
+            SettingsView(audioDeviceManager: AudioDeviceManager.shared)
         }
     }
 }

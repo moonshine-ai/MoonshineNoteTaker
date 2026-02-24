@@ -7,8 +7,11 @@ A view for app settings including font, colors, and audio recording preferences.
 
 import SwiftUI
 import AppKit
+import CoreAudio
 
 struct SettingsView: View {
+    @ObservedObject var audioDeviceManager: AudioDeviceManager
+
     @AppStorage("fontSize") private var fontSize: Double = 14.0
     @AppStorage("fontFamily") private var fontFamily: String = "System"
     @AppStorage("fontColor") private var fontColorData: Data = Color.black.toData()
@@ -102,6 +105,21 @@ struct SettingsView: View {
                     Toggle("Enable Echo Cancellation", isOn: $enableEchoCancellation)
                     Toggle("Save Audio to File", isOn: $saveAudioToFile)
                     Toggle("Show Speaker IDs", isOn: $showSpeakerIds)
+                    Picker("Microphone", selection: $audioDeviceManager.selectedDeviceUID) {
+                        Text("System Default")
+                            .tag(String?.none)
+                        Divider()
+                        ForEach(audioDeviceManager.availableInputDevices) { device in
+                            HStack {
+                                Text(device.name)
+                                if device.isDefault {
+                                    Text("(default)")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .tag(Optional(device.uid))
+                        }
+                    }
                 }
                 .padding(.vertical, 4)
             } header: {
@@ -111,7 +129,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 520, height: 500)
+        .frame(width: 520, height: 540)
     }
 }
 
