@@ -178,20 +178,27 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
   }
 
   func getLineIdsFromRanges(selectedRanges: [NSRange]) -> [UInt64] {
-    // No selection, return an empty result.
+    // No selection, select all line IDs from the current position until the end of the text.
     if selectedRanges.count == 1 && selectedRanges[0].length == 0 {
-      return []
+      let currentPosition = selectedRanges[0].location
+      let endPosition = backingStore.length
+      let isAtEndOfText = currentPosition >= (endPosition - 5)
+      let startPosition = isAtEndOfText ? 0 : currentPosition
+      let length = endPosition - startPosition
+      let range = NSRange(location: startPosition, length: length)
+      return getLineIdsFromRanges(selectedRanges: [range])
     }
     var lineIds: [UInt64] = []
     for selectedRange in selectedRanges {
-      backingStore.enumerateAttribute(.transcriptLineMetadata, in: selectedRange, options: []) {
-        lineValue, lineRange, _ in
-        if let lineValueJson = lineValue as? Data, let lineMetadata = decodeMetadata(lineValueJson)
-        {
+      backingStore.enumerateAttributes(in: selectedRange, options: []) {
+        attributes, lineRange, _ in
+        if let metadata = attributes[.transcriptLineMetadata] as? Data,
+          let lineMetadata = decodeMetadata(metadata) {
           lineIds.append(lineMetadata.lineId)
         }
       }
     }
+    print("lineIds: \(lineIds)")
     return lineIds
   }
 
@@ -306,10 +313,6 @@ class ProvenanceTextView: NSTextView {
         return
       }
       let selectedRanges = self.selectedRanges.map { $0.rangeValue }
-      if selectedRanges.count == 1 && selectedRanges[0].length == 0 {
-        onSelectionChange?([])
-        return
-      }
       let lineIds = provenanceTextStorage.getLineIdsFromRanges(selectedRanges: selectedRanges)
       onSelectionChange?(lineIds)
     }

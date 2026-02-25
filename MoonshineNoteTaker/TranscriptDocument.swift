@@ -60,7 +60,9 @@ struct TranscriptLine: Identifiable, Codable, Equatable {
 
 struct RecordingBlock: Equatable {
   let startTime: Date
-  var endTime: Date
+  var endTime: Date {
+    startTime.addingTimeInterval(TimeInterval(Double(audioCount) / 48000.0))
+  }
   var micAudio: [Float]  // In-memory only, not Codable
   var systemAudio: [Float]  // In-memory only, not Codable
   var audioCount: Int {
@@ -90,6 +92,11 @@ struct RecordingBlock: Equatable {
       systemAudioFile: systemFile
     )
   }
+}
+
+struct TranscriptLineRange: Codable {
+  let range: NSRange
+  let lineId: UInt64
 }
 
 /// A document model that holds transcript lines in time order.
@@ -198,7 +205,6 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     for codableBlock in documentData.recordingBlocks {
       var block = RecordingBlock(
         startTime: codableBlock.startTime,
-        endTime: codableBlock.endTime,
         micAudio: [],
         systemAudio: []
       )
@@ -761,16 +767,10 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     recordingBlocksLock.lock()
     defer { recordingBlocksLock.unlock() }
     recordingBlocks.append(
-      RecordingBlock(startTime: Date(), endTime: Date(), micAudio: [], systemAudio: []))
+      RecordingBlock(startTime: Date(), micAudio: [], systemAudio: []))
   }
 
   func endCurrentRecordingBlock() {
-    recordingBlocksLock.lock()
-    defer { recordingBlocksLock.unlock() }
-    var lastBlock = recordingBlocks[recordingBlocks.count - 1]
-    let duration = TimeInterval(Double(lastBlock.audioCount) / 48000.0)
-    lastBlock.endTime = lastBlock.startTime.addingTimeInterval(duration)
-    recordingBlocks[recordingBlocks.count - 1] = lastBlock
   }
 
   func addMicAudio(_ audio: [Float]) {
@@ -953,8 +953,32 @@ class TranscriptDocument: ReferenceFileDocument, @unchecked Sendable, Observable
     defer { recordingBlocksLock.unlock() }
     return recordingBlocks.count > 0
   }
-
 }
+
+func getLineRanges(attributedText: NSAttributedString) -> [TranscriptLineRange] {
+  var lineRanges: [TranscriptLineRange] = []
+  attributedText.enumerateAttributes(
+    in: NSRange(location: 0, length: attributedText.length), options: []
+  ) { attributes, range, stop in
+    if let metadata = attributes[.transcriptLineMetadata] as? Data,
+      let lineMetadata = decodeMetadata(metadata)
+    {
+      lineRanges.append(TranscriptLineRange(range: range, lineId: lineMetadata.lineId))
+    }
+  }
+  return lineRanges
+}
+
+func setLineRanges(attributedText: NSAttributedString, lineRanges: [TranscriptLineRange]) -> NSAttributedString {
+  let mutable = NSMutableAttributedString(attributedString: attributedText)
+  for lineRange in lineRanges {
+    if let encoded = encodeMetadata(TranscriptLineMetadata(lineId: lineRange.lineId, userEdited: false)) {
+      mutable.addAttribute(NSAttributedString.Key.transcriptLineMetadata, value: encoded, range: lineRange.range)
+    }
+  }
+  return mutable
+}
+
 
 // MARK: - Codable Support for Persistence
 
@@ -971,6 +995,7 @@ extension TranscriptDocument {
     var recordingBlocksWithAudio: [RecordingBlock]? = nil
 
     var attributedText: NSAttributedString = NSAttributedString()
+    var lineRanges: [TranscriptLineRange] = []
 
     @MainActor
     init(from document: TranscriptDocument) {
@@ -981,6 +1006,7 @@ extension TranscriptDocument {
       self.version = 2
       self.recordingBlocksWithAudio = document.recordingBlocks
       self.attributedText = document.attributedText
+      self.lineRanges = getLineRanges(attributedText: document.attributedText)
     }
 
     // Nonisolated initializer for use from background threads
@@ -996,6 +1022,7 @@ extension TranscriptDocument {
       self.version = 2
       self.recordingBlocksWithAudio = nil
       self.attributedText = attributedText
+      self.lineRanges = getLineRanges(attributedText: attributedText)
     }
   }
 }
@@ -1010,6 +1037,7 @@ extension TranscriptDocument.DocumentData: Codable {
     case sessionEndTime
     case version
     case attributedText
+    case lineRanges
   }
 
   func encode(to encoder: Encoder) throws {
@@ -1025,6 +1053,8 @@ extension TranscriptDocument.DocumentData: Codable {
       requiringSecureCoding: false
     )
     try container.encode(archivedData, forKey: .attributedText)
+    let lineRanges = getLineRanges(attributedText: attributedText)
+    try container.encode(lineRanges, forKey: .lineRanges)
     // recordingBlocksWithAudio is intentionally excluded
   }
 
@@ -1060,6 +1090,8 @@ extension TranscriptDocument.DocumentData: Codable {
     } else {
       attributedText = NSAttributedString()
     }
+    lineRanges = try container.decode([TranscriptLineRange].self, forKey: .lineRanges)
+    attributedText = setLineRanges(attributedText: attributedText, lineRanges: lineRanges)
   }
 }
 
