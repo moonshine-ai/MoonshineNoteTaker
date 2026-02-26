@@ -198,7 +198,6 @@ class ProvenanceTrackingTextStorage: NSTextStorage {
         }
       }
     }
-    print("lineIds: \(lineIds)")
     return lineIds
   }
 
