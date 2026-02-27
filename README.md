@@ -1,6 +1,6 @@
 # Moonshine Note Taker
 
-Transcribe any speech on your Mac—**completely privately**, with no connection to the cloud. Record yourself, capture Zoom meetings, play back podcasts or videos, or drag in audio and video files. Edit as you go, then export as a document, formatted text, audio, or SRT captions.
+Transcribe any speech on your Mac-**completely privately**, with no connection to the cloud. Record yourself, capture Zoom meetings, play back podcasts or videos, or drag in audio and video files. Edit as you go, then export as a document, formatted text, audio, or SRT captions.
 
 **Free and open source.**
 
